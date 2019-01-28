@@ -6,14 +6,15 @@ import tqdm
 
 
 class Trainer(object):
-    def __init__(self, model, loss_function, optimizer, data_train, device, writer, verbose=True):
+    def __init__(self, model, loss_function, optimizer, train_dataset, test_dataset, device, writer, verbose=True):
 
         self.model = model
         self.loss_function = loss_function
         self.optimizer = optimizer
 
         # data loaders
-        self.data_train = data_train
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
 
         self.device = device
         self.verbose = verbose
@@ -23,14 +24,12 @@ class Trainer(object):
 
         self.model.train()
 
-        running_loss = 0.
-        train_accuracy = 0.
-        train_running_accuracy = 0.
+        running_loss, train_accuracy, train_running_accuracy = 0., 0., 0.
 
-        nof_steps = len(self.data_train)
+        nof_steps = len(self.train_dataset)
         print('')
         train_losses = []
-        for step, data in enumerate(self.data_train):
+        for step, data in enumerate(self.train_dataset):
             img, target = data
             img, target = img.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
@@ -47,12 +46,11 @@ class Trainer(object):
             train_accuracy = float((predicted == correct).sum().item()) / output.size()[1]
             train_running_accuracy += train_accuracy
 
-
             if self.verbose:
                 if step % 2 == 1:
                     print('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%'.format(
                         epoch, step, running_loss / (step+1), train_running_accuracy/(step+1) * 100))
-                    self.writer.add_scalar('data/running_loss', loss.item(), epoch * nof_steps + step)
+                    self.writer.add_scalar('data/train_loss', loss.item(), epoch * nof_steps + step)
                     self.writer.add_scalar('data/train_accuracy', train_accuracy, epoch * nof_steps + step)
 
 
@@ -71,11 +69,31 @@ class Trainer(object):
         }
 
         torch.save(state, 'checkpointLeNet.pth.tar')
-        # torch.save(self.model.state_dict(), 'model.pth')
-        # torch.save(self.optimizer.state_dict(), 'optimizer.pth')
-        # torch.save(train_losses, 'train_losses.pth')
-        # self.writer.export_scalars_to_json("./all_scalars.json")
-        # self.writer.close()
+
+    def test(self, epoch):
+
+        self.model.eval()
+        test_loss, running_test_loss, test_accuracy, test_running_accuracy = 0., 0., 0., 0.
+        nof_steps = len(self.test_dataset)
+
+        with torch.no_grad():
+            for step, data in enumerate(self.test_dataset):
+                img, target = data
+                img, target = img.to(self.device), target.to(self.device)
+                output = self.model(img)
+                test_loss = self.loss_function(output, target.squeeze())
+                running_test_loss += test_loss
+                predicted = torch.argmax(output, dim=1)
+                correct = target.squeeze()
+                test_accuracy = float((predicted == correct).sum().item()) / output.size()[1]
+                test_running_accuracy += test_accuracy
+
+            if self.verbose:
+                if step % 2 == 1:
+                    print('[iter:  {:5d}] test_loss(avg): {:.3f}\t test_acc(avg): {:.3f}%'.format(
+                          step, running_test_loss / (step + 1), test_running_accuracy / (step + 1) * 100))
+                    self.writer.add_scalar('data/test_loss', test_loss.item(), epoch * nof_steps + step)
+                    self.writer.add_scalar('data/test_accuracy', test_accuracy, epoch * nof_steps + step)
 
     def __del__(self):
         self.writer.close()
