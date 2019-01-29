@@ -13,10 +13,11 @@ import math
 
 
 class GesturesDataset(Dataset):
-    def __init__(self, csv_path, mode='ir', rgb=False, data_agumentation=False, normalization_type=-1,
+    def __init__(self, csv_path, train=False, mode='ir', rgb=False, data_agumentation=False, normalization_type=-1,
                  preprocessing_type=-1, transform=True, resize_dim=64, n_frames=30):
         super().__init__()
         self.csv_path = csv_path
+        self.train = train
         self.mode = mode
         self.rgb = rgb
         self.data_augmentation = data_agumentation
@@ -30,6 +31,7 @@ class GesturesDataset(Dataset):
 
         #inizializzaione dataset
         # apertura file csv
+        self.list_data = []
         with open('csv_dataset', 'r') as csv_in:
             reader = csv.reader(csv_in)
             self.list_of_rows_with_first_frame = [row for row in reader if row[4] == self.mode and row[6] == 'True']
@@ -37,7 +39,14 @@ class GesturesDataset(Dataset):
             csv_in.seek(0)
             self.list_of_rows_with_same_mode = [row for row in reader if row[4] == self.mode]
 
-        self.list_data = self.list_of_rows_with_first_frame
+            # prenderene il 70% per test e 10% per val e 20% per test
+        len_dataset = len(self.list_of_rows_with_first_frame)
+        train_len = int(70 * len_dataset / 100)
+        if train:
+            self.list_data = self.list_of_rows_with_first_frame[:train_len]
+        else:
+            self.list_data = self.list_of_rows_with_first_frame[train_len:]
+
 
 
     def __getitem__(self, index):

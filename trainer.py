@@ -6,15 +6,15 @@ import tqdm
 
 
 class Trainer(object):
-    def __init__(self, model, loss_function, optimizer, train_dataset, test_dataset, device, writer, verbose=True):
+    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, verbose=True):
 
         self.model = model
         self.loss_function = loss_function
         self.optimizer = optimizer
 
         # data loaders
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
+        self.train_loader = train_loader
+        self.test_loader = test_loader
 
         self.device = device
         self.verbose = verbose
@@ -23,19 +23,20 @@ class Trainer(object):
     def train(self, epoch):
 
         self.model.train()
-
+        print("###TRAIN###")
         running_loss, train_accuracy, train_running_accuracy = 0., 0., 0.
 
-        nof_steps = len(self.train_dataset)
-        print('')
+        nof_steps = len(self.train_loader)
+        if epoch == 0:
+            print('nof:', nof_steps)
         train_losses = []
-        for step, data in enumerate(self.train_dataset):
+        for step, data in enumerate(self.train_loader):
             img, target = data
             img, target = img.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(img)
             # loss = self.loss_function(output, torch.max(target, 1)[1])
-            loss = self.loss_function(output, target.squeeze())
+            loss = self.loss_function(output, target.squeeze(dim=1))
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
@@ -73,27 +74,28 @@ class Trainer(object):
     def test(self, epoch):
 
         self.model.eval()
+        print("###TEST###")
         test_loss, running_test_loss, test_accuracy, test_running_accuracy = 0., 0., 0., 0.
-        nof_steps = len(self.test_dataset)
+        nof_steps = len(self.test_loader)
 
         with torch.no_grad():
-            for step, data in enumerate(self.test_dataset):
+            for step, data in enumerate(self.test_loader):
                 img, target = data
                 img, target = img.to(self.device), target.to(self.device)
                 output = self.model(img)
-                test_loss = self.loss_function(output, target.squeeze())
+                test_loss = self.loss_function(output, target.squeeze(dim=1))
                 running_test_loss += test_loss
                 predicted = torch.argmax(output, dim=1)
                 correct = target.squeeze()
                 test_accuracy = float((predicted == correct).sum().item()) / output.size()[1]
                 test_running_accuracy += test_accuracy
 
-            if self.verbose:
-                if step % 2 == 1:
-                    print('[iter:  {:5d}] test_loss(avg): {:.3f}\t test_acc(avg): {:.3f}%'.format(
-                          step, running_test_loss / (step + 1), test_running_accuracy / (step + 1) * 100))
-                    self.writer.add_scalar('data/test_loss', test_loss.item(), epoch * nof_steps + step)
-                    self.writer.add_scalar('data/test_accuracy', test_accuracy, epoch * nof_steps + step)
+                if self.verbose:
+                    if step % 2 == 1:
+                        print('[iter:  {:5d}] test_loss(avg): {:.3f}\t test_acc(avg): {:.3f}%'.format(
+                              step, running_test_loss / (step + 1), test_running_accuracy / (step + 1) * 100))
+                        self.writer.add_scalar('data/test_loss', test_loss.item(), epoch * nof_steps + step)
+                        self.writer.add_scalar('data/test_accuracy', test_accuracy, epoch * nof_steps + step)
 
     def __del__(self):
         self.writer.close()

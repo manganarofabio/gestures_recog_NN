@@ -19,11 +19,48 @@ class LeNet(nn.Module):
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2)) #da 64x64 -> 32x32
         x = F.max_pool2d(F.relu(self.conv2_drop(self.conv2(x))), (2, 2)) # 32x32 -> 14x14 -> linear
         x = x.view(-1, self.num_flat_features(x))
-        x = F.relu(self.fc1(x))
+        x = F.dropout(F.relu(self.fc1(x)), training=self.training)
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
     def num_flat_features(self, x):
         return torch.prod(torch.tensor(x.size()[1:]))
+
+
+class AlexNet(nn.Module):
+
+    def __init__(self, input_channels, input_size, n_classes):
+        super(AlexNet, self).__init__()
+
+        self.conv1 = nn.Conv2d(input_channels, 64, kernel_size=11, stride=4, padding=2)
+        self.conv2 = nn.Conv2d(64, 192, kernel_size=5, padding=2)
+        self.conv3 = nn.Conv2d(192, 384, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(384, 256, kernel_size=3, padding=1)
+        self.conv5 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
+
+        self.fc1 = nn.Linear(256*6*6, 4096)
+        self.fc2 = nn.Linear(4096, 2048)
+        self.fc3 = nn.Linear(2048, n_classes)
+
+    def forward(self, x):
+
+        x = F.max_pool2d(F.relu(self.conv1(x)), (3, 3), stride=2)
+        x = F.max_pool2d(F.relu(self.conv2(x)), (3, 3), stride=2)
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4(x))
+        x = F.max_pool2d(F.relu(self.conv5(x)), (3, 3), stride=2)
+        x = x.view(-1, self.num_flat_features(x))
+        x = F.dropout((F.relu(self.fc1(x))))
+        x = F.dropout(F.relu(self.fc2(x)))
+        x = self.fc3(x)
+        return x
+
+    def num_flat_features(self, x):
+        return torch.prod(torch.tensor(x.size()[1:]))
+
+
+
+
+
 
