@@ -15,13 +15,13 @@ parser = argparse.ArgumentParser(description='PyTorch conv2d')
 
 parser.add_argument('-model', type=str, default='AlexNet',
                     help='model of CNN')
-parser.add_argument('--batch-size', type=int, default=8, metavar='N',
+parser.add_argument('--batch-size', type=int, default=12, metavar='N',
                     help='input batch size for training (default: 4)')
-parser.add_argument('--epochs', type=int, default=50, metavar='N',
+parser.add_argument('--epochs', type=int, default=100, metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.1)')
-parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
+parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
@@ -39,7 +39,7 @@ parser.add_argument('--rgb', type=bool, default=False,
                     help='input rgb images')
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
-parser.add_argument('--input_size', type=int, default=227,
+parser.add_argument('--input_size', type=int, default=227, #227 alexnet, 64 lenet
                     help='number of frames per input')
 parser.add_argument('--n_classes', type=int, default=12,
                     help='number of frames per input')
@@ -101,14 +101,18 @@ def main():
 
     # add info experiment
     writer.add_text('Info experiment',
-                    "batch_size:{}\n\nepochs:{}\n\nlr:{}\n\nmomentum:{}"
+                    "model:{}"
+                    "\n\nbatch_size:{}"
+                    "\n\nepochs:{}"
+                    "\n\nlr:{}"
+                    "\n\nmomentum:{}"
                     "\n\nn_frames:{}"
                     "\n\ninput_size:{}"
                     "\n\nn_classes:{}"
                     "\n\nmode:{}"
                     "\n\nrgb:{}"
-                    "\nnn_workers: {}"
-                    "".format(args.batch_size, args.epochs, args.lr, args.momentum, args.n_frames, args.input_size,
+                    "\n\nn_workers: {}"
+                    "".format(args.model, args.batch_size, args.epochs, args.lr, args.momentum, args.n_frames, args.input_size,
                               args.n_classes, args.mode, args.rgb, args.n_workers))
 
     trainer = Trainer(model, loss_function, optimizer, train_loader, test_loader, device, writer)
