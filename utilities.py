@@ -15,6 +15,28 @@ def normalization(img, type=1):
 
     return img
 
+def adjust_learning_rate(epoch, optimizer):
+
+    lr = 0.001
+
+    if epoch > 180:
+        lr = lr / 1000000
+    elif epoch > 150:
+        lr = lr / 100000
+    elif epoch > 120:
+        lr = lr / 10000
+    elif epoch > 90:
+        lr = lr / 1000
+    elif epoch > 60:
+        lr = lr / 100
+    elif epoch > 30:
+        lr = lr / 10
+
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr
+
+
+
 ##############
 # TRANSFORMS #
 ##############

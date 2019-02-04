@@ -30,7 +30,7 @@ class GesturesDataset(Dataset):
             self.transforms = transforms.Compose([
                 utilities.Rescale(256),
                 utilities.RandomCrop(self.resize_dim),
-                utilities.RandomFlip(30),
+                utilities.RandomFlip(15),
                 transforms.ToTensor()
             ])
         else:
@@ -49,12 +49,18 @@ class GesturesDataset(Dataset):
             self.list_of_rows_with_same_mode = [row for row in reader if row[4] == self.mode]
 
             # prenderene il 70% per test e 10% per val e 20% per test
-        len_dataset = len(self.list_of_rows_with_first_frame)
-        train_len = int(70 * len_dataset / 100)
-        if train:
-            self.list_data = self.list_of_rows_with_first_frame[:train_len]
-        else:
-            self.list_data = self.list_of_rows_with_first_frame[train_len:]
+        # len_dataset = len(self.list_of_rows_with_first_frame)
+        len_dataset_per_session = len(set([int(x[1]) for x in self.list_of_rows_with_first_frame]))
+
+        #devo dividere il train e il test in base alla sessione
+
+        train_len = int(70 * len_dataset_per_session / 100)
+        #divido il dataset in train e test per sessione
+        for i in range(len_dataset_per_session):
+            if self.train and i < train_len:
+                self.list_data += ([x for x in self.list_of_rows_with_first_frame if (int(x[1])) == i])
+            elif not self.train and i >= train_len:
+                self.list_data += ([x for x in self.list_of_rows_with_first_frame if (int(x[1])) == i])
 
 
 
@@ -66,7 +72,7 @@ class GesturesDataset(Dataset):
                    tuple: (image, target) where target is class_index of the target class.
                """
 
-        img_data = self.list_of_rows_with_first_frame[index]
+        img_data = self.list_data[index]
 
         list_of_img_of_same_record = [img[0] for img in self.list_of_rows_with_same_mode
                                        if img[1] == img_data[1] # sessione

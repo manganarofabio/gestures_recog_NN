@@ -1,11 +1,12 @@
 from __future__ import division, print_function
 import torch
 from tensorboardX import SummaryWriter
-import tqdm
+import utilities
 
 
 class Trainer(object):
-    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name, verbose=True):
+    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name,
+                 dynamic_lr=False, verbose=True):
 
         self.model = model
         self.loss_function = loss_function
@@ -19,6 +20,7 @@ class Trainer(object):
         self.verbose = verbose
         self.writer = writer
         self.personal_name = personal_name
+        self.dynamic_lr = dynamic_lr
 
     def train(self, epoch):
 
@@ -53,6 +55,11 @@ class Trainer(object):
                         epoch, step, running_loss / (step+1), train_running_accuracy/(step+1) * 100))
                     self.writer.add_scalar('data/train_loss', loss.item(), epoch * nof_steps + step)
                     self.writer.add_scalar('data/train_accuracy', train_accuracy, epoch * nof_steps + step)
+
+        if self.dynamic_lr:
+            utilities.adjust_learning_rate(epoch, self.optimizer)
+
+
 
 
 

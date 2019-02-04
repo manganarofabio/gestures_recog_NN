@@ -128,7 +128,6 @@ class AlexNetBN(nn.Module):
         return torch.prod(torch.tensor(x.size()[1:]))
 
 
-
 class Vgg16(nn.Module):
 
     def __init__(self, input_channels, input_size, n_classes):
