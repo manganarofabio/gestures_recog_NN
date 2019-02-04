@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import argparse
 from dataloader import GesturesDataset
-from models import LeNet, AlexNet, Vgg16
+from models import LeNet, AlexNet, AlexNetBN, Vgg16
 from trainer import Trainer
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -13,11 +13,11 @@ import numpy as np
 
 parser = argparse.ArgumentParser(description='PyTorch conv2d')
 
-parser.add_argument('-model', type=str, default='Vgg16',
+parser.add_argument('-model', type=str, default='AlexNet',
                     help='model of CNN')
 parser.add_argument('--batch-size', type=int, default=12, metavar='N',
                     help='input batch size for training (default: 4)')
-parser.add_argument('--epochs', type=int, default=100, metavar='N',
+parser.add_argument('--epochs', type=int, default=92, metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.1)')
@@ -39,7 +39,7 @@ parser.add_argument('--rgb', type=bool, default=False,
                     help='input rgb images')
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
-parser.add_argument('--input_size', type=int, default=224, #227 alexnet, 64 lenet, 224 vgg16
+parser.add_argument('--input_size', type=int, default=227, #227 alexnet, 64 lenet, 224 vgg16
                     help='number of frames per input')
 parser.add_argument('--n_classes', type=int, default=12,
                     help='number of frames per input')
@@ -62,7 +62,7 @@ def main():
     # DATALOADER
 
     train_dataset = GesturesDataset(csv_path='csv_dataset', train=True, mode=args.mode, rgb=args.rgb, normalization_type=1,
-                                    n_frames=args.n_frames, resize_dim=args.input_size)
+                                    n_frames=args.n_frames, resize_dim=args.input_size, transform_train=True)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.n_workers)
 
     test_dataset = GesturesDataset(csv_path='csv_dataset', train=False, mode=args.mode, rgb=args.rgb, normalization_type=1,
@@ -77,6 +77,8 @@ def main():
         model = LeNet(input_channels=in_channels, input_size=args.input_size, n_classes=n_classes).to(device)
     elif args.model == 'AlexNet':
         model = AlexNet(input_channels=in_channels, input_size=args.input_size, n_classes=n_classes).to(device)
+    elif args.model == 'AlexNetBN':
+        model = AlexNetBN(input_channels=in_channels, input_size=args.input_size, n_classes=n_classes).to(device)
     elif args.model == "Vgg16":
         model = Vgg16(input_channels=in_channels, input_size=args.input_size, n_classes=n_classes).to(device)
 
@@ -93,7 +95,7 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "vgg"
+    personal_name = None
     log_dir = "logs"
     if personal_name:
         exp_name = (("exp_{}_{}".format(time.strftime("%c"), personal_name)).replace(" ", "_")).replace(":", "-")

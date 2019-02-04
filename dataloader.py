@@ -14,7 +14,7 @@ import math
 
 class GesturesDataset(Dataset):
     def __init__(self, csv_path, train=False, mode='ir', rgb=False, data_agumentation=False, normalization_type=-1,
-                 preprocessing_type=-1, transform=True, resize_dim=64, n_frames=30):
+                 preprocessing_type=-1, transform_train=False, resize_dim=64, n_frames=30):
         super().__init__()
         self.csv_path = csv_path
         self.train = train
@@ -26,10 +26,19 @@ class GesturesDataset(Dataset):
         self.resize_dim = resize_dim
         self.n_frames = n_frames
         # self.crop_limit = crop_limit
-        if transform:
-            self.transforms = transforms.Compose([transforms.ToTensor()])
+        if transform_train:
+            self.transforms = transforms.Compose([
+                utilities.Rescale(256),
+                utilities.RandomCrop(self.resize_dim),
+                utilities.RandomFlip(30),
+                transforms.ToTensor()
+            ])
+        else:
+            self.transforms = transforms.Compose([
+                transforms.ToTensor()
+            ])
 
-        #inizializzaione dataset
+        # inizializzaione dataset
         # apertura file csv
         self.list_data = []
         with open('csv_dataset', 'r') as csv_in:
@@ -76,7 +85,6 @@ class GesturesDataset(Dataset):
         for img_path in list_of_img_of_same_record_cropped:
             img = cv2.imread(img_path, 0 if self.rgb is False else 1)
             img = cv2.resize(img, (self.resize_dim, self.resize_dim))
-            # img = (torch.from_numpy(img)).unsqueeze(0)
             if not self.rgb:
                 img = np.expand_dims(img, axis=2)
             list_img.append(img)

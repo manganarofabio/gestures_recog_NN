@@ -4,7 +4,6 @@ from tensorboardX import SummaryWriter
 import tqdm
 
 
-
 class Trainer(object):
     def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, verbose=True):
 
