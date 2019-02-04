@@ -5,7 +5,7 @@ import tqdm
 
 
 class Trainer(object):
-    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, verbose=True):
+    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name, verbose=True):
 
         self.model = model
         self.loss_function = loss_function
@@ -18,6 +18,7 @@ class Trainer(object):
         self.device = device
         self.verbose = verbose
         self.writer = writer
+        self.personal_name = personal_name
 
     def train(self, epoch):
 
@@ -65,10 +66,11 @@ class Trainer(object):
             'train_losses': train_losses,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
+            'info': self.personal_name
 
         }
 
-        torch.save(state, 'checkpointLeNet.pth.tar')
+        torch.save(state, 'checkpoint{}_{}.pth.tar'.format(str(self.model).split('(')[0], self.personal_name))
 
     def test(self, epoch):
 
