@@ -22,12 +22,12 @@ parser.add_argument('--epochs', type=int, default=99, metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--opt', type=str, default='SGD',
                     help="Optimizer (default: SGD)")
-parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
+parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.1)')
 parser.add_argument('--dn_lr', default=True,
                     help="adjust dinamically lr")
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
-                    help='SGD momentum (default: 0.5)')
+                    help='SGD momentum (default: 0.9)')
 parser.add_argument('--weight_decay', type=float, default=0.0001, metavar='M',
                     help='Adam weight_decay (default: 0.0001')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -40,7 +40,7 @@ parser.add_argument('--resume', action='store_true', default=False,
                     help='resume training from checkpoint')
 parser.add_argument('--n_workers', type=int, default=2,
                     help="number of workers")
-parser.add_argument('--mode', type=str, default='depth_ir',
+parser.add_argument('--mode', type=str, default='depth_z',
                     help='mode of dataset')
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
@@ -130,7 +130,6 @@ def main():
         model = model.to(device)
 
 
-
     if args.opt == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     elif args.opt == 'Adam':
@@ -147,7 +146,7 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "DenseNet121_depth_ir_dataset_updated"
+    personal_name = "DenseNet121P_depth_z"
     log_dir = "logs"
     if personal_name:
         exp_name = (("exp_{}_{}".format(time.strftime("%c"), personal_name)).replace(" ", "_")).replace(":", "-")
@@ -178,10 +177,16 @@ def main():
     trainer = Trainer(model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name,
                       args.dn_lr)
 
-    print("model: {}".format(args.model + personal_name))
+    print("experiment: {}".format(personal_name))
+    start = time.time()
     for ep in range(start_epoch, args.epochs):
         trainer.train(ep)
         trainer.test(ep)
+
+    end = time.time()
+    h, rem = divmod(end - start, 3600)
+    m, s, = divmod(rem, 60)
+    print("elapsed time (ep.{}):{:0>2}:{:0>2}:{:05.2f}".format(args.epochs, int(h), int(m), s))
 
 
 if __name__ == '__main__':

@@ -59,12 +59,6 @@ class Trainer(object):
         if self.dynamic_lr:
             utilities.adjust_learning_rate(epoch, self.optimizer)
 
-
-
-
-
-        # SALVATAGGIO STATO a fine di ogni epoca
-
         state = {
 
             'epoch': epoch,
