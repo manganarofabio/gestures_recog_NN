@@ -39,7 +39,7 @@ class GesturesDataset(Dataset):
                 self.transforms = transforms.Compose([
                     utilities.Rescale(256),
                     utilities.RandomCrop(self.resize_dim),
-                    utilities.RandomFlip(15),
+                    # utilities.RandomFlip(15),
                 ])
 
         else:
@@ -76,8 +76,6 @@ class GesturesDataset(Dataset):
             elif not self.train and i >= train_len:
                 self.list_data += ([x for x in self.list_of_rows_with_first_frame if (int(x[1])) == i])
 
-
-
     def __getitem__(self, index):
         """
                Args:
@@ -96,10 +94,10 @@ class GesturesDataset(Dataset):
         # slice image
         #qui da [10:35]
         center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
-        crop_limit = int(self.n_frames / 2)
+        crop_limit = math.floor(self.n_frames / 2)
         start = center_of_list - crop_limit
         end = center_of_list + crop_limit
-        list_of_img_of_same_record_cropped = list_of_img_of_same_record[start:end]
+        list_of_img_of_same_record_cropped = list_of_img_of_same_record[start: end+1 if self.n_frames % 2 == 1 else end]
 
         list_img = []
         for img_path in list_of_img_of_same_record_cropped:
@@ -137,11 +135,8 @@ class GesturesDataset(Dataset):
         # target = np.empty((1),dtype=np.int32)
         # target[0] = int(img_data[5])
         #np array
+
         return img_concat, target
-
-
-
-
 
 
     def __len__(self):

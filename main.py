@@ -14,11 +14,13 @@ import numpy as np
 
 parser = argparse.ArgumentParser(description='PyTorch conv2d')
 
-parser.add_argument('-model', type=str, default='DenseNet121P',
-                    help='model of CNN')
+parser.add_argument('--model', type=str, default='Lstm',
+                    help='model of NN')
+parser.add_argument('--pretrained', default=True,
+                    help='pretrained net')
 parser.add_argument('--batch-size', type=int, default=12, metavar='N',
                     help='input batch size for training (default: 4)')
-parser.add_argument('--epochs', type=int, default=99, metavar='N',
+parser.add_argument('--epochs', type=int, default=50, metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--opt', type=str, default='SGD',
                     help="Optimizer (default: SGD)")
@@ -27,7 +29,7 @@ parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
 parser.add_argument('--dn_lr', default=True,
                     help="adjust dinamically lr")
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
-                    help='SGD momentum (default: 0.9)')
+                    help='SGD momentum (default: 0.5)')
 parser.add_argument('--weight_decay', type=float, default=0.0001, metavar='M',
                     help='Adam weight_decay (default: 0.0001')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -40,12 +42,14 @@ parser.add_argument('--resume', action='store_true', default=False,
                     help='resume training from checkpoint')
 parser.add_argument('--n_workers', type=int, default=2,
                     help="number of workers")
-parser.add_argument('--mode', type=str, default='depth_z',
+parser.add_argument('--mode', type=str, default='depth_ir',
                     help='mode of dataset')
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
 parser.add_argument('--input_size', type=int, default=224, #227 alexnet, 64 lenet, 224 vgg16 and Resnet, denseNet
                     help='number of frames per input')
+parser.add_argument('--train_transforms', default=True,
+                    help="training transforms")
 parser.add_argument('--n_classes', type=int, default=12,
                     help='number of frames per input')
 
@@ -56,6 +60,7 @@ def main():
 
     use_cuda = torch.cuda.is_available() and not args.no_cuda
     device = torch.device('cuda' if use_cuda else 'cpu')
+    print(device)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -71,7 +76,8 @@ def main():
     # DATALOADER
 
     train_dataset = GesturesDataset(csv_path='csv_dataset', train=True, mode=args.mode, rgb=rgb, normalization_type=1,
-                                    n_frames=args.n_frames, resize_dim=args.input_size, transform_train=True)
+                                    n_frames=args.n_frames, resize_dim=args.input_size,
+                                    transform_train=args.train_transforms)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.n_workers)
 
     test_dataset = GesturesDataset(csv_path='csv_dataset', train=False, mode=args.mode, rgb=rgb, normalization_type=1,
@@ -96,7 +102,7 @@ def main():
         model = Vgg16(input_channels=in_channels, input_size=args.input_size, n_classes=n_classes).to(device)
 
     elif args.model == "Vgg16P":
-        model = models.vgg16(pretrained=True)
+        model = models.vgg16(pretrained=args.pretrained)
         for params in model.parameters():
             params.required_grad = False
         model.features._modules['0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(3, 3), stride=1, padding=1)
@@ -105,7 +111,7 @@ def main():
         model = model.to(device)
 
     elif args.model == "ResNet18P":
-        model = models.resnet18(pretrained=True)
+        model = models.resnet18(pretrained=args.pretrained)
         for params in model.parameters():
             params.requires_grad = False
         model._modules['conv1'] = nn.Conv2d(in_channels, 64, 7, stride=2, padding=3)
@@ -113,7 +119,7 @@ def main():
         model = model.to(device)
 
     elif args.model == "ResNet34P":
-        model = models.resnet34(pretrained=True)
+        model = models.resnet34(pretrained=args.pretrained)
         for params in model.parameters():
             params.requires_grad = False
         model._modules['conv1'] = nn.Conv2d(in_channels, 64, 7, stride=2, padding=3)
@@ -121,13 +127,44 @@ def main():
         model = model.to(device)
 
     elif args.model == "DenseNet121P":
-        model = models.densenet121(pretrained=True)
+        model = models.densenet121(pretrained=args.pretrained)
         for params in model.parameters():
             params.required_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=1024, out_features=n_classes, bias=True)
         model = model.to(device)
+
+    elif args.model == "DenseNet161P":
+        model = models.densenet161(pretrained=args.pretrained)
+        for params in model.parameters():
+            params.required_grad = False
+        model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=(7, 7),
+                                                     stride=(2, 2), padding=(3, 3))
+        model.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
+        model = model.to(device)
+
+    elif args.model == "DenseNet169P":
+        model = models.densenet169(pretrained=args.pretrained)
+        for params in model.parameters():
+            params.required_grad = False
+        model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(7, 7),
+                                                     stride=(2, 2), padding=(3, 3))
+        model.classifier = nn.Linear(in_features=1664, out_features=n_classes, bias=True)
+        model = model.to(device)
+
+    elif args.model == "DenseNet201P":
+        model = models.densenet201(pretrained=args.pretrained)
+        for params in model.parameters():
+            params.required_grad = False
+        model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(7, 7),
+                                                     stride=(2, 2), padding=(3, 3))
+        model.classifier = nn.Linear(in_features=1920, out_features=n_classes, bias=True)
+        model = model.to(device)
+
+    else:
+        print('no model selected')
+        exit(-1)
 
 
     if args.opt == 'SGD':
@@ -146,7 +183,7 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "DenseNet121P_depth_z"
+    personal_name = "{}_{}_028_tr_35f".format(args.model, args.mode)
     log_dir = "logs"
     if personal_name:
         exp_name = (("exp_{}_{}".format(time.strftime("%c"), personal_name)).replace(" ", "_")).replace(":", "-")
@@ -157,6 +194,7 @@ def main():
     # add info experiment
     writer.add_text('Info experiment',
                     "model:{}"
+                    "\n\npretrained:{}"
                     "\n\nbatch_size:{}"
                     "\n\nepochs:{}"
                     "\n\noptimizer:{}"
@@ -170,7 +208,7 @@ def main():
                     "\n\nmode:{}"
                     "\n\nn_workers:{}"
                     "\n\nseed:{}"
-                    "".format(args.model, args.batch_size, args.epochs, args.opt, args.lr, args.dn_lr, args.momentum,
+                    "".format(args.model, args.pretrained, args.batch_size, args.epochs, args.opt, args.lr, args.dn_lr, args.momentum,
                               args.weight_decay, args.n_frames, args.input_size,
                               args.n_classes, args.mode, args.n_workers, args.seed))
 
@@ -186,7 +224,7 @@ def main():
     end = time.time()
     h, rem = divmod(end - start, 3600)
     m, s, = divmod(rem, 60)
-    print("elapsed time (ep.{}):{:0>2}:{:0>2}:{:05.2f}".format(args.epochs, int(h), int(m), s))
+    print("\nelapsed time (ep.{}):{:0>2}:{:0>2}:{:05.2f}".format(args.epochs, int(h), int(m), s))
 
 
 if __name__ == '__main__':

@@ -81,6 +81,7 @@ class Trainer(object):
         nof_steps = len(self.test_loader)
 
         with torch.no_grad():
+
             for step, data in enumerate(self.test_loader):
                 img, target = data
                 img, target = img.to(self.device), target.to(self.device)

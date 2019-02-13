@@ -46,6 +46,7 @@ def main():
                     [img, data[-6], data[-5], data[-4], "{}_{}".format(data[-3], data[-2]), data[-5][1:]
                         , first])
 
+    print('COMPLETED')
 
 if __name__ == '__main__':
     main()
