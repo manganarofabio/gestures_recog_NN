@@ -191,7 +191,6 @@ def from_json_to_list(json_file):
                 j['frame']['right_hand']['pointables']['p_4']['length'],
                 float(j['frame']['right_hand']['pointables']['p_4']['is_extended']),
                 # fingers
-                '''
                 j['frame']['right_hand']['fingers']['thumb']['length'],
                 j['frame']['right_hand']['fingers']['thumb']['width'],
                 j['frame']['right_hand']['fingers']['thumb']['bones']['metacarpal']['center'][0],
@@ -722,7 +721,6 @@ def from_json_to_list(json_file):
                 j['frame']['right_hand']['fingers']['pinky']['bones']['distal']['next_joint'][3],
                 j['frame']['right_hand']['fingers']['pinky']['bones']['distal']['next_joint'][4],
                 j['frame']['right_hand']['fingers']['pinky']['bones']['distal']['next_joint'][5]
-                '''
             ]
         else:
             j_vector = False

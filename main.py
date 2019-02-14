@@ -18,9 +18,9 @@ parser.add_argument('--model', type=str, default='Lstm',
                     help='model of NN')
 parser.add_argument('--pretrained', default=True,
                     help='pretrained net')
-parser.add_argument('--batch-size', type=int, default=12, metavar='N',
+parser.add_argument('--batch-size', type=int, default=4, metavar='N',
                     help='input batch size for training (default: 4)')
-parser.add_argument('--epochs', type=int, default=1000, metavar='N',
+parser.add_argument('--epochs', type=int, default=100, metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--opt', type=str, default='SGD',
                     help="Optimizer (default: SGD)")
@@ -42,7 +42,7 @@ parser.add_argument('--resume', action='store_true', default=False,
                     help='resume training from checkpoint')
 parser.add_argument('--n_workers', type=int, default=2,
                     help="number of workers")
-parser.add_argument('--mode', type=str, default='leap_motion_tracking_data',
+parser.add_argument('--mode', type=str, default='rgb',
                     help='mode of dataset')
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')

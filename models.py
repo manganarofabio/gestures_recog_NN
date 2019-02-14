@@ -269,9 +269,9 @@ class C3D(nn.Module):
         h = self.dropout(h)
 
         logits = self.fc8(h)
-        probs = self.softmax(logits)
+        # probs = self.softmax(logits)
 
-        return probs
+        return logits
 
     def num_flat_features(self, x):
         return torch.prod(torch.tensor(x.size()[1:]))
