@@ -6,11 +6,13 @@ import utilities
 
 class Trainer(object):
     def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name,
-                 dynamic_lr=False, verbose=True):
+                 dynamic_lr=False, rnn=False, verbose=True):
 
         self.model = model
         self.loss_function = loss_function
         self.optimizer = optimizer
+
+        self.rnn = rnn
 
         # data loaders
         self.train_loader = train_loader
@@ -32,21 +34,21 @@ class Trainer(object):
         if epoch == 0:
             print('nof:', nof_steps)
         train_losses = []
+
         for step, data in enumerate(self.train_loader):
-            img, target = data
-            img, target = img.to(self.device), target.to(self.device)
+            x, label = data
+            x, label = x.to(self.device), label.to(self.device)
             self.optimizer.zero_grad()
-            output = self.model(img)
-            # loss = self.loss_function(output, torch.max(target, 1)[1])
-            loss = self.loss_function(output, target.squeeze(dim=1))
+            output = self.model(x)
+            loss = self.loss_function(output, label.squeeze(dim=1))
             loss.backward()
             self.optimizer.step()
             running_loss += loss.item()
             train_losses.append(loss.item())
             # Train accuracy
             predicted = torch.argmax(output, dim=1)
-            correct = target.squeeze()
-            train_accuracy = float((predicted == correct).sum().item()) / output.size()[1]
+            correct = label.squeeze()
+            train_accuracy = float((predicted == correct).sum().item()) / len(correct)
             train_running_accuracy += train_accuracy
 
             if self.verbose:
@@ -81,22 +83,21 @@ class Trainer(object):
         nof_steps = len(self.test_loader)
 
         with torch.no_grad():
-
             for step, data in enumerate(self.test_loader):
-                img, target = data
-                img, target = img.to(self.device), target.to(self.device)
-                output = self.model(img)
+                x, target = data
+                x, target = x.to(self.device), target.to(self.device)
+                output = self.model(x)
                 test_loss = self.loss_function(output, target.squeeze(dim=1))
                 running_test_loss += test_loss
                 predicted = torch.argmax(output, dim=1)
                 correct = target.squeeze()
-                test_accuracy = float((predicted == correct).sum().item()) / output.size()[1]
+                test_accuracy = float((predicted == correct).sum().item()) / len(correct)
                 test_running_accuracy += test_accuracy
 
                 if self.verbose:
                     if step % 2 == 1:
-                        print('[iter:  {:5d}] test_loss(avg): {:.3f}\t test_acc(avg): {:.3f}%'.format(
-                              step, running_test_loss / (step + 1), test_running_accuracy / (step + 1) * 100))
+                        print('[epoch: {:d}, iter:  {:5d}] test_loss(avg): {:.3f}\t test_acc(avg): {:.3f}%'.format(
+                              epoch, step, running_test_loss / (step + 1), test_running_accuracy / (step + 1) * 100))
                         self.writer.add_scalar('data/test_loss', test_loss.item(), epoch * nof_steps + step)
                         self.writer.add_scalar('data/test_accuracy', test_accuracy, epoch * nof_steps + step)
 

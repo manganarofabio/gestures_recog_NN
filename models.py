@@ -169,11 +169,117 @@ class Vgg16(nn.Module):
         x = x.view(-1, self.num_flat_features(x))
         x = F.dropout(F.relu(self.fc1(x)))
         x = F.dropout(F.relu(self.fc2(x)))
-        x = self.fc3(x)
-        return x
 
+        return x
 
     def num_flat_features(self, x):
         return torch.prod(torch.tensor(x.size()[1:]))
 
+
+class Lstm(nn.Module):
+    def __init__(self, input_size, hidden_size, batch_size, num_classes, num_layers=2, batch_first=True):
+        super(Lstm, self).__init__()
+        self.hidden_size = hidden_size
+        self.batch_size = batch_size
+        self.num_classes = num_classes
+        self.num_layers = num_layers
+        self.batch_first = batch_first
+
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=batch_first)
+        self.fc = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x):
+        # transpose 0 with 1 (batch, seq_len)
+
+        if self.batch_first:
+            x = x.permute(1, 0, 2)
+
+        # out, hidden = self.lstm(x, hidden)
+        out, (ht, ct) = self.lstm(x)
+        # vogliamo solo l'ultimo output
+
+        out = out[-1]
+
+        fc_output = self.fc(out)
+        return fc_output
+
+    def init_hidden(self):
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
+
+
+class C3D(nn.Module):
+    """
+    The C3D network as described in [1].
+    """
+
+    def __init__(self, num_classes):
+        super(C3D, self).__init__()
+
+        self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.pool1 = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
+
+        self.conv2 = nn.Conv3d(64, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.pool2 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
+
+        self.conv3a = nn.Conv3d(128, 256, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.conv3b = nn.Conv3d(256, 256, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.pool3 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
+
+        self.conv4a = nn.Conv3d(256, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.conv4b = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.pool4 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
+
+        self.conv5a = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.conv5b = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+        self.pool5 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 1, 1))
+
+        self.fc6 = nn.Linear(28672, 4096) # modificato l'input
+        self.fc7 = nn.Linear(4096, 4096)
+        self.fc8 = nn.Linear(4096, num_classes)
+
+        self.dropout = nn.Dropout(p=0.5)
+
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax()
+
+    def forward(self, x):
+
+        h = self.relu(self.conv1(x))
+        h = self.pool1(h)
+
+        h = self.relu(self.conv2(h))
+        h = self.pool2(h)
+
+        h = self.relu(self.conv3a(h))
+        h = self.relu(self.conv3b(h))
+        h = self.pool3(h)
+
+        h = self.relu(self.conv4a(h))
+        h = self.relu(self.conv4b(h))
+        h = self.pool4(h)
+
+        h = self.relu(self.conv5a(h))
+        h = self.relu(self.conv5b(h))
+        h = self.pool5(h)
+
+        h = h.view(-1, self.num_flat_features(h))
+        h = self.relu(self.fc6(h))
+        h = self.dropout(h)
+        h = self.relu(self.fc7(h))
+        h = self.dropout(h)
+
+        logits = self.fc8(h)
+        probs = self.softmax(logits)
+
+        return probs
+
+    def num_flat_features(self, x):
+        return torch.prod(torch.tensor(x.size()[1:]))
+
+"""
+References
+----------
+[1] Tran, Du, et al. "Learning spatiotemporal features with 3d convolutional networks." 
+Proceedings of the IEEE international conference on computer vision. 2015.
+"""
 

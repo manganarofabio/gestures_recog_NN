@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import argparse
 from dataloader import GesturesDataset
-from models import LeNet, AlexNet, AlexNetBN, Vgg16
+from models import LeNet, AlexNet, AlexNetBN, Vgg16, Lstm, C3D
 from trainer import Trainer
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -20,17 +20,17 @@ parser.add_argument('--pretrained', default=True,
                     help='pretrained net')
 parser.add_argument('--batch-size', type=int, default=12, metavar='N',
                     help='input batch size for training (default: 4)')
-parser.add_argument('--epochs', type=int, default=50, metavar='N',
+parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                     help='number of epochs to train (default: 2)')
 parser.add_argument('--opt', type=str, default='SGD',
                     help="Optimizer (default: SGD)")
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                    help='learning rate (default: 0.1)')
+                    help='learning rate (default: 0.01)')
 parser.add_argument('--dn_lr', default=True,
                     help="adjust dinamically lr")
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
-parser.add_argument('--weight_decay', type=float, default=0.0001, metavar='M',
+parser.add_argument('--weight_decay', type=float, default=1e-4, metavar='M',
                     help='Adam weight_decay (default: 0.0001')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
@@ -42,16 +42,23 @@ parser.add_argument('--resume', action='store_true', default=False,
                     help='resume training from checkpoint')
 parser.add_argument('--n_workers', type=int, default=2,
                     help="number of workers")
-parser.add_argument('--mode', type=str, default='depth_ir',
+parser.add_argument('--mode', type=str, default='leap_motion_tracking_data',
                     help='mode of dataset')
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
-parser.add_argument('--input_size', type=int, default=224, #227 alexnet, 64 lenet, 224 vgg16 and Resnet, denseNet
+parser.add_argument('--input_size', type=int, default=224, # 227 alexnet, 64 lenet, 224 vgg16 and Resnet, denseNet
                     help='number of frames per input')
 parser.add_argument('--train_transforms', default=True,
                     help="training transforms")
 parser.add_argument('--n_classes', type=int, default=12,
                     help='number of frames per input')
+# LSTM
+parser.add_argument('--input_size_rnn', type=int, default=675, # num features leap_motion
+                    help='input size of rnn')
+parser.add_argument('--hidden_size', type=int, default=256,
+                    help='hidden size of rnn')
+parser.add_argument('--n_layers', type=int, default=2,
+                    help='n layers of rnn')
 
 args = parser.parse_args()
 
@@ -75,12 +82,12 @@ def main():
 
     # DATALOADER
 
-    train_dataset = GesturesDataset(csv_path='csv_dataset', train=True, mode=args.mode, rgb=rgb, normalization_type=1,
+    train_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=True, mode=args.mode, rgb=rgb, normalization_type=1,
                                     n_frames=args.n_frames, resize_dim=args.input_size,
                                     transform_train=args.train_transforms)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.n_workers)
 
-    test_dataset = GesturesDataset(csv_path='csv_dataset', train=False, mode=args.mode, rgb=rgb, normalization_type=1,
+    test_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=False, mode=args.mode, rgb=rgb, normalization_type=1,
                                    n_frames=args.n_frames, resize_dim=args.input_size)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.n_workers)
 
@@ -161,16 +168,23 @@ def main():
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=1920, out_features=n_classes, bias=True)
         model = model.to(device)
+    # RNN
+    elif args.model == 'Lstm':
+        model = Lstm(input_size=args.input_size_rnn, hidden_size=args.hidden_size, batch_size=args.batch_size,
+                     num_classes=args.n_classes, num_layers=args.n_layers).to(device)
+    # C3D
 
+    elif args.model == 'C3D':
+        model = C3D(args.n_classes).to(device)
     else:
         print('no model selected')
         exit(-1)
-
 
     if args.opt == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     elif args.opt == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
     loss_function = nn.CrossEntropyLoss().to(device)
 
     start_epoch = 0
@@ -183,7 +197,7 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "{}_{}_028_tr_35f".format(args.model, args.mode)
+    personal_name = "{}_{}_028".format(args.model, args.mode)
     log_dir = "logs"
     if personal_name:
         exp_name = (("exp_{}_{}".format(time.strftime("%c"), personal_name)).replace(" ", "_")).replace(":", "-")
@@ -212,8 +226,10 @@ def main():
                               args.weight_decay, args.n_frames, args.input_size,
                               args.n_classes, args.mode, args.n_workers, args.seed))
 
+    rnn = True if args.model == 'Lstm' else False
+
     trainer = Trainer(model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name,
-                      args.dn_lr)
+                      args.dn_lr, rnn=rnn)
 
     print("experiment: {}".format(personal_name))
     start = time.time()
