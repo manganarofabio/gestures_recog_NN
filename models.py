@@ -186,7 +186,10 @@ class Lstm(nn.Module):
         self.batch_first = batch_first
 
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=batch_first)
-        self.fc = nn.Linear(hidden_size, num_classes)
+        # self.fc = nn.Linear(hidden_size, num_classes)
+
+        self.fc1 = nn.Linear(hidden_size, int(hidden_size/2))
+        self.fc2 = nn.Linear(int(hidden_size/2), num_classes)
 
     def forward(self, x):
         # transpose 0 with 1 (batch, seq_len)
@@ -196,6 +199,40 @@ class Lstm(nn.Module):
 
         # out, hidden = self.lstm(x, hidden)
         out, (ht, ct) = self.lstm(x)
+        # vogliamo solo l'ultimo output
+
+        out = out[-1]
+
+        # fc_output = F.relu(self.fc(out))
+        fc_output = F.relu(self.fc1(out))
+        fc_output = self.fc2(fc_output)
+        return fc_output
+
+    def init_hidden(self):
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
+
+
+class Gru(nn.Module):
+
+    def __init__(self, input_size, hidden_size, batch_size, num_classes, num_layers=2, batch_first=True):
+        super(Gru, self).__init__()
+        self.hidden_size = hidden_size
+        self.batch_size = batch_size
+        self.num_classes = num_classes
+        self.num_layers = num_layers
+        self.batch_first = batch_first
+
+        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=batch_first)
+        self.fc = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, x):
+        # transpose 0 with 1 (batch, seq_len)
+
+        if self.batch_first:
+            x = x.permute(1, 0, 2)
+
+        # out, hidden = self.lstm(x, hidden)
+        out, ht = self.gru(x)
         # vogliamo solo l'ultimo output
 
         out = out[-1]
@@ -236,6 +273,9 @@ class C3D(nn.Module):
         self.fc6 = nn.Linear(28672, 4096) # modificato l'input
         self.fc7 = nn.Linear(4096, 4096)
         self.fc8 = nn.Linear(4096, num_classes)
+        # added
+        # self.fc9 = nn.Linear(2048, 1024)
+        # self.fc10 = nn.Linear(1024, num_classes)
 
         self.dropout = nn.Dropout(p=0.5)
 
@@ -267,8 +307,14 @@ class C3D(nn.Module):
         h = self.dropout(h)
         h = self.relu(self.fc7(h))
         h = self.dropout(h)
-
         logits = self.fc8(h)
+
+        # added
+        # h = self.relu(self.fc8(h))
+        # h = self.dropout(h)
+        # h = self.relu(self.fc9(h))
+        # h = self.dropout(h)
+        # logits = self.fc10(h)
         # probs = self.softmax(logits)
 
         return logits

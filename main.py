@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import argparse
 from dataloader import GesturesDataset
-from models import LeNet, AlexNet, AlexNetBN, Vgg16, Lstm, C3D
+from models import LeNet, AlexNet, AlexNetBN, Vgg16, Lstm, Gru, C3D
 from trainer import Trainer
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -172,6 +172,9 @@ def main():
     elif args.model == 'Lstm':
         model = Lstm(input_size=args.input_size_rnn, hidden_size=args.hidden_size, batch_size=args.batch_size,
                      num_classes=args.n_classes, num_layers=args.n_layers).to(device)
+    elif args.model == 'Gru':
+        model = Gru(input_size=args.input_size_rnn, hidden_size=args.hidden_size, batch_size=args.batch_size,
+                    num_classes=args.n_classes, num_layers=args.n_layers).to(device)
     # C3D
 
     elif args.model == 'C3D':
@@ -189,7 +192,7 @@ def main():
 
     start_epoch = 0
     if args.resume:
-        checkpoint = torch.load("./checkpoint{}.pth.tar".format(args.model))
+        checkpoint = torch.load("/projects/fabio/weights/gesture_recog_weights/checkpoint{}.pth.tar".format(args.model))
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         start_epoch = checkpoint['epoch']
@@ -197,8 +200,9 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "{}_{}_028".format(args.model, args.mode)
-    log_dir = "logs"
+    personal_name = "{}_{}_036".format(args.model, args.mode)
+    info_experiment = "{}: ".format(personal_name)
+    log_dir = "/projects/fabio/logs/gesture_recog_logs"
     if personal_name:
         exp_name = (("exp_{}_{}".format(time.strftime("%c"), personal_name)).replace(" ", "_")).replace(":", "-")
     else:
@@ -222,13 +226,14 @@ def main():
                     "\n\nmode:{}"
                     "\n\nn_workers:{}"
                     "\n\nseed:{}"
+                    "\n\ninfo:{}"
                     "".format(args.model, args.pretrained, args.batch_size, args.epochs, args.opt, args.lr, args.dn_lr, args.momentum,
                               args.weight_decay, args.n_frames, args.input_size,
-                              args.n_classes, args.mode, args.n_workers, args.seed))
+                              args.n_classes, args.mode, args.n_workers, args.seed, info_experiment))
 
     rnn = True if args.model == 'Lstm' else False
 
-    trainer = Trainer(model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name,
+    trainer = Trainer(model, loss_function, optimizer, train_loader, test_loader, args.batch_size, device, writer, personal_name,
                       args.dn_lr, rnn=rnn)
 
     print("experiment: {}".format(personal_name))

@@ -5,7 +5,7 @@ import utilities
 
 
 class Trainer(object):
-    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, device, writer, personal_name,
+    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, batch_size, device, writer, personal_name,
                  dynamic_lr=False, rnn=False, verbose=True):
 
         self.model = model
@@ -17,6 +17,7 @@ class Trainer(object):
         # data loaders
         self.train_loader = train_loader
         self.test_loader = test_loader
+        self.batch_size = batch_size
 
         self.device = device
         self.verbose = verbose
@@ -47,7 +48,9 @@ class Trainer(object):
             train_losses.append(loss.item())
             # Train accuracy
             predicted = torch.argmax(output, dim=1)
-            correct = label.squeeze()
+            correct = label
+            if self.batch_size != 1:
+                correct = correct.squeeze()
             train_accuracy = float((predicted == correct).sum().item()) / len(correct)
             train_running_accuracy += train_accuracy
 
@@ -73,7 +76,7 @@ class Trainer(object):
 
         }
 
-        torch.save(state, 'checkpoint{}_{}.pth.tar'.format(str(self.model).split('(')[0], self.personal_name))
+        torch.save(state, '/projects/fabio/weights/gesture_recog_weights/checkpoint{}_{}.pth.tar'.format(str(self.model).split('(')[0], self.personal_name))
 
     def test(self, epoch):
 
@@ -84,13 +87,15 @@ class Trainer(object):
 
         with torch.no_grad():
             for step, data in enumerate(self.test_loader):
-                x, target = data
-                x, target = x.to(self.device), target.to(self.device)
+                x, label = data
+                x, label = x.to(self.device), label.to(self.device)
                 output = self.model(x)
-                test_loss = self.loss_function(output, target.squeeze(dim=1))
+                test_loss = self.loss_function(output, label.squeeze(dim=1))
                 running_test_loss += test_loss
                 predicted = torch.argmax(output, dim=1)
-                correct = target.squeeze()
+                correct = label
+                if self.batch_size != 1:
+                    correct = correct.squeeze()
                 test_accuracy = float((predicted == correct).sum().item()) / len(correct)
                 test_running_accuracy += test_accuracy
 

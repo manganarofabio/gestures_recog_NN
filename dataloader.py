@@ -115,20 +115,21 @@ class GesturesDataset(Dataset):
                                        and img[2] == img_data[2] # gesture
                                        and img[3] == img_data[3]]  # record
 
-        # slice image
-        # qui da [10:35]
-        center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
-        crop_limit = math.floor(self.n_frames / 2)
-        start = center_of_list - crop_limit
-        end = center_of_list + crop_limit
-        list_of_img_of_same_record_cropped = list_of_img_of_same_record[
-                                             start: end + 1 if self.n_frames % 2 == 1 else end]
+        list_of_img_of_same_record_cropped = []
+        # slice image se non facciamo lstm variabile
+        if self.mode != 'leap_motion_tracking_data':
+            center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
+            crop_limit = math.floor(self.n_frames / 2)
+            start = center_of_list - crop_limit
+            end = center_of_list + crop_limit
+            list_of_img_of_same_record_cropped = list_of_img_of_same_record[
+                                                 start: end + 1 if self.n_frames % 2 == 1 else end]
 
-        if self.mode == 'leap_motion_tracking_data':
-
+        # lettura dati
+        if self.mode == 'leap_motion_tracking_data': #not cropped
             # invalid = False
             list_of_json_frame = []
-            for js in list_of_img_of_same_record_cropped:
+            for js in list_of_img_of_same_record:
 
                 f_js, j = utilities.from_json_to_list(js)
                 list_of_json_frame.append(f_js)
@@ -136,7 +137,13 @@ class GesturesDataset(Dataset):
             return torch.Tensor(list_of_json_frame), target
 
         elif self.model == 'C3D':
-            clip = np.array([cv2.resize(cv2.imread(frame), (112, 200)) for frame in list_of_img_of_same_record_cropped])
+            if self.mode == 'depth_z':
+                clip = np.array([np.repeat(np.expand_dims(cv2.resize(np.loadtxt(gzip.GzipFile(frame, 'r')),
+                                                                     (112, 200)), axis=2), 3, axis=2)
+                                 for frame in list_of_img_of_same_record_cropped])
+            else:
+                clip = np.array([cv2.resize(cv2.imread(frame), (112, 200)) for frame in list_of_img_of_same_record_cropped])
+
             if self.normalization_type is not None:
                 utilities.normalization(clip, 1)
             clip = clip.transpose(3, 0, 1, 2)  # ch, fr, h, w
