@@ -142,7 +142,11 @@ class GesturesDataset(Dataset):
                                                                      (112, 200)), axis=2), 3, axis=2)
                                  for frame in list_of_img_of_same_record_cropped])
             else:
-                clip = np.array([cv2.resize(cv2.imread(frame), (112, 200)) for frame in list_of_img_of_same_record_cropped])
+                try:
+                    clip = np.array([cv2.resize(cv2.imread(frame), (112, 200)) for frame in
+                                     list_of_img_of_same_record_cropped])
+                except:
+                    print('ok')
 
             if self.normalization_type is not None:
                 utilities.normalization(clip, 1)
@@ -155,7 +159,7 @@ class GesturesDataset(Dataset):
             list_img = []
             for img_path in list_of_img_of_same_record_cropped:
                 if self.mode != 'depth_z':
-                    img = cv2.imread(img_path, 0 if self.rgb is False else 1)
+                    img = cv2.imread(img_path, 0 if not self.rgb else 1)
                     img = cv2.resize(img, (self.resize_dim, self.resize_dim))
                     if not self.rgb:
                         img = np.expand_dims(img, axis=2)

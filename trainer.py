@@ -6,7 +6,7 @@ import utilities
 
 class Trainer(object):
     def __init__(self, model, loss_function, optimizer, train_loader, test_loader, batch_size, device, writer, personal_name,
-                 dynamic_lr=False, rnn=False, verbose=True):
+                 dynamic_lr=False, rnn=False, verbose=True, num_classes=12):
 
         self.model = model
         self.loss_function = loss_function
@@ -24,6 +24,11 @@ class Trainer(object):
         self.writer = writer
         self.personal_name = personal_name
         self.dynamic_lr = dynamic_lr
+        self.num_classes = num_classes
+
+        # class accuracy
+        self.class_correct = [0. for i in range(self.num_classes)]
+        self.class_total = [0. for i in range(self.num_classes)]
 
     def train(self, epoch):
 
@@ -41,6 +46,10 @@ class Trainer(object):
             x, label = x.to(self.device), label.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(x)
+            # introdotto 20/02
+            #label = label.permute(1, 0)  # switchare
+            # output = output.view(-1, output.size(2))  #squeeze su 0
+            #output = output.squeeze(dim=0)
             loss = self.loss_function(output, label.squeeze(dim=1))
             loss.backward()
             self.optimizer.step()
@@ -49,8 +58,8 @@ class Trainer(object):
             # Train accuracy
             predicted = torch.argmax(output, dim=1)
             correct = label
-            if self.batch_size != 1:
-                correct = correct.squeeze()
+            #if self.batch_size != 1:
+            correct = correct.squeeze(dim=1)
             train_accuracy = float((predicted == correct).sum().item()) / len(correct)
             train_running_accuracy += train_accuracy
 
@@ -93,11 +102,21 @@ class Trainer(object):
                 test_loss = self.loss_function(output, label.squeeze(dim=1))
                 running_test_loss += test_loss
                 predicted = torch.argmax(output, dim=1)
+
                 correct = label
-                if self.batch_size != 1:
-                    correct = correct.squeeze()
+                # if self.batch_size != 1:
+                correct = correct.squeeze(dim=1)
                 test_accuracy = float((predicted == correct).sum().item()) / len(correct)
                 test_running_accuracy += test_accuracy
+
+                c = (predicted == correct).squeeze()
+                for i in range(self.batch_size):
+                    i_label = label[i]
+                    if self.batch_size > 1:
+                        self.class_correct[i_label] += c[i].item()
+                    else:
+                        self.class_correct[i_label] += c.item()
+                    self.class_total[i_label] += 1
 
                 if self.verbose:
                     if step % 2 == 1:

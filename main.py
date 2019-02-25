@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import argparse
 from dataloader import GesturesDataset
-from models import LeNet, AlexNet, AlexNetBN, Vgg16, Lstm, Gru, C3D
+from models import LeNet, AlexNet, AlexNetBN, Vgg16, Rnn, C3D
 from trainer import Trainer
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -16,6 +16,8 @@ parser = argparse.ArgumentParser(description='PyTorch conv2d')
 
 parser.add_argument('--model', type=str, default='Lstm',
                     help='model of NN')
+parser.add_argument('--final_layer', type=str, default='fc',
+                    help='final layer of rnn')
 parser.add_argument('--pretrained', default=True,
                     help='pretrained net')
 parser.add_argument('--batch-size', type=int, default=4, metavar='N',
@@ -169,12 +171,11 @@ def main():
         model.classifier = nn.Linear(in_features=1920, out_features=n_classes, bias=True)
         model = model.to(device)
     # RNN
-    elif args.model == 'Lstm':
-        model = Lstm(input_size=args.input_size_rnn, hidden_size=args.hidden_size, batch_size=args.batch_size,
-                     num_classes=args.n_classes, num_layers=args.n_layers).to(device)
-    elif args.model == 'Gru':
-        model = Gru(input_size=args.input_size_rnn, hidden_size=args.hidden_size, batch_size=args.batch_size,
-                    num_classes=args.n_classes, num_layers=args.n_layers).to(device)
+    elif args.model == 'LSTM' or args.model == 'GRU':
+        model = Rnn(rnn_type=args.model, input_size=args.input_size_rnn, hidden_size=args.hidden_size,
+                    batch_size=args.batch_size,
+                    num_classes=args.n_classes, num_layers=args.n_layers,
+                    final_layer=args.final_layer).to(device)
     # C3D
 
     elif args.model == 'C3D':
@@ -200,7 +201,7 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "{}_{}_036".format(args.model, args.mode)
+    personal_name = "{}_{}_036_inputsize_675".format(args.model, args.mode)
     info_experiment = "{}: ".format(personal_name)
     log_dir = "/projects/fabio/logs/gesture_recog_logs"
     if personal_name:
@@ -241,6 +242,12 @@ def main():
     for ep in range(start_epoch, args.epochs):
         trainer.train(ep)
         trainer.test(ep)
+
+    # display classes results
+    classes = ['g0', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11']
+    for i in range(args.n_classes):
+        print('Accuracy of {} : {:.3f}%%'.format(
+            classes[i], 100 * trainer.class_correct[i] / trainer.class_total[i]))
 
     end = time.time()
     h, rem = divmod(end - start, 3600)

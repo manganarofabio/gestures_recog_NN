@@ -244,6 +244,67 @@ class Gru(nn.Module):
         return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
 
 
+class Rnn(nn.Module):
+    def __init__(self, input_size, hidden_size, batch_size, num_classes, num_layers=2, rnn_type='LSTM', final_layer='fc'):
+        super(Rnn, self).__init__()
+        self.hidden_size = hidden_size
+        self.batch_size = batch_size
+        self.num_classes = num_classes
+        self.num_layers = num_layers
+        self.final_layer = final_layer
+        self.rnn_type = rnn_type
+
+        if self.rnn_type == 'LSTM':
+
+            self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+            self.rnn1 = nn.LSTM(input_size=hidden_size, hidden_size=num_classes, batch_first=True)
+        elif self.rnn_type == 'GRU':
+            self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
+                              batch_first=True)
+            self.rnn1 = nn.GRU(input_size=hidden_size, hidden_size=num_classes, num_layers=num_layers,
+                               batch_first=True)
+        else:
+            raise NotImplementedError
+
+        self.dropout = nn.Dropout(p=0.2)
+        self.fc = nn.Linear(hidden_size, hidden_size//2 if self.final_layer == 'fc2' else num_classes)
+        self.fc1 = nn.Linear(hidden_size//2, num_classes)
+
+    def forward(self, x):
+        # the order must be batch, seq_len, input size
+
+        out, (ht, ct) = self.rnn(x)
+
+        if self.final_layer == 'fc':
+            # vogliamo solo l'ultimo output
+
+            out = out[:, -1]
+
+            out = self.dropout(out)
+            out = self.fc(out)
+
+        elif self.final_layer == 'fc2':
+            # vogliamo solo l'ultimo output
+
+            out = out[:, -1]
+
+            out = self.dropout(out)
+            out = self.fc(out)
+            out = F.relu(out)
+            out = self.dropout(out)
+            out = self.fc1(out)
+
+        elif self.final_layer == 'lstm':
+            out, (ht, ct) = self.rnn1(out)
+            if self.classification:
+                out = out[:, -1]
+
+        return out
+
+    def init_hidden(self):
+        return torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
+
+
 class C3D(nn.Module):
     """
     The C3D network as described in [1].
