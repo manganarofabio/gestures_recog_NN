@@ -6,6 +6,36 @@ import torch as th
 import json
 
 
+# file has to be already opened
+def print_training_info(log_file, writer, epoch, step, running_loss, train_running_accuracy, loss, nof_steps,
+                        train_accuracy):
+    # print su terminal
+    print('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%'.format(
+        epoch, step, running_loss / (step + 1), train_running_accuracy / (step + 1) * 100))
+    # print su file
+    log_file.write('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%\n'.format(
+        epoch, step, running_loss / (step + 1), train_running_accuracy / (step + 1) * 100))
+    # print su tensorboard
+
+    writer.add_scalar('data/train_loss', loss.item(), epoch * nof_steps + step)
+    writer.add_scalar('data/train_accuracy', train_accuracy, epoch * nof_steps + step)
+
+
+def print_validation_info(log_file, writer, epoch, step, running_loss, validation_running_accuracy, loss, nof_steps,
+                          validation_accuracy):
+    # print su terminal
+    print('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%'.format(
+        epoch, step, running_loss / (step + 1), validation_running_accuracy / (step + 1) * 100))
+    # print su file
+    log_file.write('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%\n'.format(
+        epoch, step, running_loss / (step + 1), validation_running_accuracy / (step + 1) * 100))
+    # print su tensorboard
+
+    writer.add_scalar('data/validation_loss', loss.item(), epoch * nof_steps + step)
+    writer.add_scalar('data/validation_accuracy', validation_accuracy, epoch * nof_steps + step)
+
+
+
 def image_processing(img, type=1):
     pass
 
@@ -16,9 +46,8 @@ def normalization(img, type=1):
 
     return img
 
-def adjust_learning_rate(epoch, optimizer):
 
-    lr = 0.001
+def adjust_learning_rate(lr, epoch, optimizer):
 
     if epoch > 180:
         lr = lr / 1000000

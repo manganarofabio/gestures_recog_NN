@@ -2,10 +2,12 @@ from __future__ import division, print_function
 import torch
 from tensorboardX import SummaryWriter
 import utilities
+import os
 
 
 class Trainer(object):
-    def __init__(self, model, loss_function, optimizer, train_loader, test_loader, batch_size, device, writer, personal_name,
+    def __init__(self, model, loss_function, optimizer, train_loader, validation_loader, batch_size, initial_lr, device, writer, personal_name,
+                 log_file, weight_dir,
                  dynamic_lr=False, rnn=False, verbose=True, num_classes=12):
 
         self.model = model
@@ -16,15 +18,18 @@ class Trainer(object):
 
         # data loaders
         self.train_loader = train_loader
-        self.test_loader = test_loader
+        self.validation_loader = validation_loader
         self.batch_size = batch_size
+        self.initial_lr = initial_lr
 
         self.device = device
         self.verbose = verbose
         self.writer = writer
         self.personal_name = personal_name
+        self.log_file = log_file
         self.dynamic_lr = dynamic_lr
         self.num_classes = num_classes
+        self.weight_dir = weight_dir
 
         # class accuracy
         self.class_correct = [0. for i in range(self.num_classes)]
@@ -34,6 +39,7 @@ class Trainer(object):
 
         self.model.train()
         print("###TRAIN###")
+        self.log_file.write("TRAIN\n")
         running_loss, train_accuracy, train_running_accuracy = 0., 0., 0.
 
         nof_steps = len(self.train_loader)
@@ -65,13 +71,19 @@ class Trainer(object):
 
             if self.verbose:
                 if step % 2 == 1:
-                    print('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%'.format(
-                        epoch, step, running_loss / (step+1), train_running_accuracy/(step+1) * 100))
-                    self.writer.add_scalar('data/train_loss', loss.item(), epoch * nof_steps + step)
-                    self.writer.add_scalar('data/train_accuracy', train_accuracy, epoch * nof_steps + step)
+                    # print('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%'.format(
+                    #     epoch, step, running_loss / (step+1), train_running_accuracy/(step+1) * 100))
+                    # self.writer.add_scalar('data/train_loss', loss.item(), epoch * nof_steps + step)
+                    # self.writer.add_scalar('data/train_accuracy', train_accuracy, epoch * nof_steps + step)
 
+                    utilities.print_training_info(log_file=self.log_file, writer=self.writer, epoch=epoch, step=step,
+                                                  running_loss=running_loss, train_running_accuracy=train_running_accuracy,
+                                                  loss=loss, nof_steps=nof_steps, train_accuracy=train_accuracy)
         if self.dynamic_lr:
-            utilities.adjust_learning_rate(epoch, self.optimizer)
+            print('dynamic')
+            utilities.adjust_learning_rate(self.initial_lr, epoch, self.optimizer)
+        else:
+            print('static')
 
         state = {
 
@@ -85,33 +97,45 @@ class Trainer(object):
 
         }
 
-        torch.save(state, '/projects/fabio/weights/gesture_recog_weights/checkpoint{}_{}.pth.tar'.format(str(self.model).split('(')[0], self.personal_name))
+        # if epoch % 10 == 0:
+        # salvo ogni epoca
 
-    def test(self, epoch):
+        save_path = '/projects/fabio/weights/gesture_recog_weights/{}/ep_{:03d}_checkpoint{}_{}_.pth.tar'.format(
+                        self.weight_dir, epoch, str(self.model).split('(')[0], self.personal_name)
+
+        if not os.path.exists('/projects/fabio/weights/gesture_recog_weights/{}'.format(self.weight_dir)):
+            os.makedirs('/projects/fabio/weights/gesture_recog_weights/{}'.format(self.weight_dir))
+
+        torch.save(state, save_path)
+
+        # torch.save(state, '/projects/fabio/weights/gesture_recog_weights/checkpoint{}_{}.pth.tar'.format(str(self.model).split('(')[0], self.personal_name))
+
+    def val(self, epoch):
 
         self.model.eval()
-        print("###TEST###")
-        test_loss, running_test_loss, test_accuracy, test_running_accuracy = 0., 0., 0., 0.
-        nof_steps = len(self.test_loader)
+        print("###VALIDATION###")
+        self.log_file.write("###VALIDATION###\n")
+        validation_loss, running_validation_loss, validation_accuracy, validation_running_accuracy = 0., 0., 0., 0.
+        nof_steps = len(self.validation_loader)
 
         with torch.no_grad():
-            for step, data in enumerate(self.test_loader):
+            for step, data in enumerate(self.validation_loader):
                 x, label = data
                 x, label = x.to(self.device), label.to(self.device)
                 output = self.model(x)
-                test_loss = self.loss_function(output, label.squeeze(dim=1))
-                running_test_loss += test_loss
+                validation_loss = self.loss_function(output, label.squeeze(dim=1))
+                running_validation_loss += validation_loss
                 predicted = torch.argmax(output, dim=1)
 
                 correct = label
                 # if self.batch_size != 1:
                 correct = correct.squeeze(dim=1)
-                test_accuracy = float((predicted == correct).sum().item()) / len(correct)
-                test_running_accuracy += test_accuracy
+                validation_accuracy = float((predicted == correct).sum().item()) / len(correct)
+                validation_running_accuracy += validation_accuracy
 
                 c = (predicted == correct).squeeze()
-                for i in range(self.batch_size):
-                    i_label = label[i]
+                for i in range(len(correct)):
+                    i_label = correct[i]
                     if self.batch_size > 1:
                         self.class_correct[i_label] += c[i].item()
                     else:
@@ -120,10 +144,15 @@ class Trainer(object):
 
                 if self.verbose:
                     if step % 2 == 1:
-                        print('[epoch: {:d}, iter:  {:5d}] test_loss(avg): {:.3f}\t test_acc(avg): {:.3f}%'.format(
-                              epoch, step, running_test_loss / (step + 1), test_running_accuracy / (step + 1) * 100))
-                        self.writer.add_scalar('data/test_loss', test_loss.item(), epoch * nof_steps + step)
-                        self.writer.add_scalar('data/test_accuracy', test_accuracy, epoch * nof_steps + step)
+                        # print('[epoch: {:d}, iter:  {:5d}] validation_loss(avg): {:.3f}\t validation_acc(avg): {:.3f}%'.format(
+                        #       epoch, step, running_validation_loss / (step + 1), validation_running_accuracy / (step + 1) * 100))
+                        # self.writer.add_scalar('data/validation_loss', validation_loss.item(), epoch * nof_steps + step)
+                        # self.writer.add_scalar('data/validation_accuracy', validation_accuracy, epoch * nof_steps + step)
+                        utilities.print_validation_info(log_file=self.log_file, writer=self.writer, epoch=epoch,
+                                                        step=step, running_loss=running_validation_loss,
+                                                        validation_running_accuracy=validation_running_accuracy,
+                                                        loss=validation_loss, nof_steps=nof_steps,
+                                                        validation_accuracy=validation_accuracy)
 
     def __del__(self):
         self.writer.close()

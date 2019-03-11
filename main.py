@@ -28,7 +28,7 @@ parser.add_argument('--opt', type=str, default='SGD',
                     help="Optimizer (default: SGD)")
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                     help='learning rate (default: 0.01)')
-parser.add_argument('--dn_lr', default=True,
+parser.add_argument('--dn_lr', action='store_true', default=False,
                     help="adjust dinamically lr")
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                     help='SGD momentum (default: 0.5)')
@@ -50,7 +50,7 @@ parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
 parser.add_argument('--input_size', type=int, default=224, # 227 alexnet, 64 lenet, 224 vgg16 and Resnet, denseNet
                     help='number of frames per input')
-parser.add_argument('--train_transforms', default=True,
+parser.add_argument('--train_transforms', action='store_true', default=False,
                     help="training transforms")
 parser.add_argument('--n_classes', type=int, default=12,
                     help='number of frames per input')
@@ -62,6 +62,8 @@ parser.add_argument('--hidden_size', type=int, default=256,
 parser.add_argument('--n_layers', type=int, default=2,
                     help='n layers of rnn')
 
+# parser.add_argument('--weight_dir', type=str)
+parser.add_argument('--exp_name', type=str, default="prova")
 args = parser.parse_args()
 
 
@@ -89,9 +91,9 @@ def main():
                                     transform_train=args.train_transforms)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.n_workers)
 
-    test_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=False, mode=args.mode, rgb=rgb, normalization_type=1,
+    validation_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=False, mode=args.mode, rgb=rgb, normalization_type=1,
                                    n_frames=args.n_frames, resize_dim=args.input_size)
-    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.n_workers)
+    validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.n_workers)
 
     # paramteri per la rete
 
@@ -201,9 +203,12 @@ def main():
         print("Resuming state:\n-epoch: {}\n{}".format(start_epoch, model))
 
     #name experiment
-    personal_name = "{}_{}_036_inputsize_675".format(args.model, args.mode)
-    info_experiment = "{}: ".format(personal_name)
-    log_dir = "/projects/fabio/logs/gesture_recog_logs"
+    personal_name = "{}_{}_{}".format(args.model, args.mode, args.exp_name)
+    info_experiment = "{}".format(personal_name)
+    log_dir = "/projects/fabio/logs/gesture_recog_logs/exps"
+    weight_dir = personal_name
+    log_file = open("{}/{}.txt".format("/projects/fabio/logs/gesture_recog_logs/txt_logs", personal_name), 'w')
+    log_file.write(personal_name + "\n\n")
     if personal_name:
         exp_name = (("exp_{}_{}".format(time.strftime("%c"), personal_name)).replace(" ", "_")).replace(":", "-")
     else:
@@ -234,14 +239,17 @@ def main():
 
     rnn = True if args.model == 'Lstm' else False
 
-    trainer = Trainer(model, loss_function, optimizer, train_loader, test_loader, args.batch_size, device, writer, personal_name,
-                      args.dn_lr, rnn=rnn)
+    trainer = Trainer(model=model, loss_function=loss_function, optimizer=optimizer, train_loader=train_loader,
+                      validation_loader=validation_loader,
+                      batch_size=args.batch_size, initial_lr=args.lr,  device=device, writer=writer, personal_name=personal_name, log_file=log_file,
+                      weight_dir=weight_dir, dynamic_lr=args.dn_lr, rnn=rnn)
+
 
     print("experiment: {}".format(personal_name))
     start = time.time()
     for ep in range(start_epoch, args.epochs):
         trainer.train(ep)
-        trainer.test(ep)
+        trainer.val(ep)
 
     # display classes results
     classes = ['g0', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11']
@@ -253,6 +261,15 @@ def main():
     h, rem = divmod(end - start, 3600)
     m, s, = divmod(rem, 60)
     print("\nelapsed time (ep.{}):{:0>2}:{:0>2}:{:05.2f}".format(args.epochs, int(h), int(m), s))
+
+
+    # writing accuracy on file
+
+    log_file.write("\n\n")
+    for i in range(args.n_classes):
+        log_file.write('Accuracy of {} : {:.3f}%\n'.format(
+            classes[i], 100 * trainer.class_correct[i] / trainer.class_total[i]))
+    log_file.close()
 
 
 if __name__ == '__main__':

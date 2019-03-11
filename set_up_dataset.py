@@ -23,7 +23,7 @@ def check_first_image(relative_name_img):
 
 def main():
 
-    l = sorted([os.path.abspath(os.path.join(dp, f)) for dp, dn, fn in os.walk(os.path.expanduser("../../datasets/data")) for f in fn])
+    l = sorted([os.path.abspath(os.path.join(dp, f)) for dp, dn, fn in os.walk(os.path.expanduser("/projects/fabio/datasets/data/train")) for f in fn])
 
     # list_sessions, num_of_sessions = os.listdir("data"), len(os.listdir("data"))
     # list_gestures = ['g0', 'g01', 'g02', 'g02', 'g02']

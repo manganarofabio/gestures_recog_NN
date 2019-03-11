@@ -63,15 +63,15 @@ class GesturesDataset(Dataset):
             csv_in.seek(0)
             self.list_of_rows_with_same_mode = [row for row in reader if row[4] == self.mode]
 
-            # prenderene il 70% per test e 10% per val e 20% per test
+            # prenderene il 70% per validation e 10% per val e 20% per validation
         # len_dataset = len(self.list_of_rows_with_first_frame)
         # per calcolare la lunghezza conto il numero di sessioni (senza duplicati quindi uso set)
         len_dataset_per_session = len(set([int(x[1]) for x in self.list_of_rows_with_first_frame]))
 
-        # devo dividere il train e il test in base alla sessione
+        # devo dividere il train e il validation in base alla sessione
 
-        train_len = int(70 * len_dataset_per_session / 100)
-        # divido il dataset in train e test per sessione
+        train_len = round(80 * len_dataset_per_session / 100)
+        # divido il dataset in train e validation per sessione
         for i in range(len_dataset_per_session):
             if self.train and i < train_len:
                 self.list_data += ([x for x in self.list_of_rows_with_first_frame if (int(x[1])) == i])
