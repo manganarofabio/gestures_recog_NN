@@ -23,12 +23,14 @@ def check_first_image(relative_name_img):
 
 def main():
 
-    l = sorted([os.path.abspath(os.path.join(dp, f)) for dp, dn, fn in os.walk(os.path.expanduser("/projects/fabio/datasets/data/train")) for f in fn])
+    train = False # false if test
+    l = sorted([os.path.abspath(os.path.join(dp, f)) for dp, dn, fn in os.walk(
+        os.path.expanduser("/projects/fabio/datasets/data/train" if train else "/projects/fabio/datasets/data/test")) for f in fn])
 
     # list_sessions, num_of_sessions = os.listdir("data"), len(os.listdir("data"))
     # list_gestures = ['g0', 'g01', 'g02', 'g02', 'g02']
 
-    with open('csv_dataset', 'w', newline="") as csv_file:
+    with open('csv_dataset' if train else 'csv_testset', 'w', newline="") as csv_file:
         file_writer = csv.writer(csv_file, delimiter=',')
 
         file_writer.writerow(['img_path', 'session_id', 'gesture_id', 'record', 'mode', 'label', 'first'])

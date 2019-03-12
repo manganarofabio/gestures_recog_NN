@@ -8,6 +8,8 @@ import utilities
 import PIL
 import math
 import gzip
+import os
+import tqdm
 
 # csv
 # img_path,session_id,gesture_id,record,mode,label,first
@@ -56,7 +58,7 @@ class GesturesDataset(Dataset):
         # inizializzaione dataset
         # apertura file csv
         self.list_data = []
-        with open('csv_dataset', 'r') as csv_in:
+        with open(self.csv_path, 'r') as csv_in:
             reader = csv.reader(csv_in)
             self.list_of_rows_with_first_frame = [row for row in reader if row[4] == self.mode and row[6] == 'True']
             # list_of_rows_with_same_mode = list_of_rows_with_same_mode[1:]  # list_of_row[1]['mode']
@@ -97,6 +99,70 @@ class GesturesDataset(Dataset):
 
             self.list_data = self.list_data_correct
 
+        if normalization_type:
+
+            # calcolo media
+            list_clip_to_norm = []
+            # if self.mode == 'depth_ir':
+            if not os.path.exists("mean_std_{}.npz".format(self.mode)):
+                print('calculating mean and std...')
+                for i, first_img in enumerate(tqdm.tqdm(self.list_data)):
+                    # print('clip: {}'.format(i))
+                    list_of_img_of_same_record = [img[0] for img in self.list_of_rows_with_same_mode
+                                              if img[1] == first_img[1]  # sessione
+                                              and img[2] == first_img[2]  # gesture
+                                              and img[3] == first_img[3]]  # record
+
+                    # slice image se non facciamo lstm variabile
+
+                    center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
+                    crop_limit = math.floor(self.n_frames / 2)
+                    start = center_of_list - crop_limit
+                    end = center_of_list + crop_limit
+                    list_of_img_of_same_record_cropped = list_of_img_of_same_record[
+                                                         start: end + 1 if self.n_frames % 2 == 1 else end]
+                    list_img = []
+                    if self.mode == 'leap_motion_tracking_data':
+                        list_of_json_frame = []
+                        for js in list_of_img_of_same_record:  #not cropped because variable mode
+                            f_js, j = utilities.from_json_to_list(js)
+                            list_img.append(np.asarray(f_js))
+                    else:
+
+                        for img_path in list_of_img_of_same_record_cropped:
+
+                            if self.mode != 'depth_z':
+                                img = cv2.imread(img_path, 0 if not self.rgb else 1)
+                                img = cv2.resize(img, (self.resize_dim, self.resize_dim))
+                                if not self.rgb:
+                                    img = np.expand_dims(img, axis=2)
+                            elif self.mode == 'depth_z':
+                                f = gzip.GzipFile(img_path, "r")
+                                img = np.loadtxt(f)
+                                img = cv2.resize(img, (self.resize_dim, self.resize_dim))
+                                img = np.expand_dims(img, axis=2)
+                            list_img.append(img)
+
+                    # concateno numpy array
+                    if self.mode != 'leap_motion_tracking_data':
+                        img_concat = np.concatenate(list_img, axis=2)
+                        list_clip_to_norm.append(img_concat)
+                    else:
+                        list_clip_to_norm.append(np.vstack(list_img))
+
+
+                list_clip_to_norm = np.vstack(list_clip_to_norm)
+                self.mean = np.mean(list_clip_to_norm)
+                self.std = np.std(list_clip_to_norm)
+                np.savez("mean_std_{}.npz".format(self.mode), self.mean, self.std)
+                print('mean, std {} saved.'.format(self.mode))
+
+            else:
+                npzfile = np.load("mean_std_{}.npz".format(self.mode))
+                self.mean = npzfile['arr_0']
+                self.std = npzfile['arr_1']
+                print('mean, std {} loaded.'.format(self.mode))
+
         print('dataset_initialized')
 
     def __getitem__(self, index):
@@ -134,6 +200,9 @@ class GesturesDataset(Dataset):
                 f_js, j = utilities.from_json_to_list(js)
                 list_of_json_frame.append(f_js)
 
+            if self.normalization_type:
+                list_of_json_frame = utilities.normalization(np.asarray(list_of_json_frame), self.mean, self.std)
+
             return torch.Tensor(list_of_json_frame), target
 
         elif self.model == 'C3D':
@@ -149,7 +218,7 @@ class GesturesDataset(Dataset):
                     print('ok')
 
             if self.normalization_type is not None:
-                utilities.normalization(clip, 1)
+                clip = utilities.normalization(clip, self.mean, self.std, 1)
             clip = clip.transpose(3, 0, 1, 2)  # ch, fr, h, w
             clip = np.float32(clip)
 
@@ -174,8 +243,7 @@ class GesturesDataset(Dataset):
             img_concat = np.concatenate(list_img, axis=2)
 
             if self.normalization_type is not None:
-                utilities.normalization(img_concat, 1)
-
+                img_concat = utilities.normalization(img_concat, self.mean, self.std, 1).astype(np.float32)
             # prima di convertire in tensore transpose
             # img_concat = img_concat.transpose([2, 0, 1])
             if self.transforms is not None:

@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import argparse
 from dataloader import GesturesDataset
-from models import LeNet, AlexNet, AlexNetBN, Vgg16, Rnn, C3D
+from models import LeNet, AlexNet, AlexNetBN, Vgg16, Rnn, C3D, ConvLSTM
 from trainer import Trainer
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -49,7 +49,7 @@ parser.add_argument('--mode', type=str, default='rgb',
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
 parser.add_argument('--input_size', type=int, default=224, # 227 alexnet, 64 lenet, 224 vgg16 and Resnet, denseNet
-                    help='number of frames per input')
+                    help='input size')
 parser.add_argument('--train_transforms', action='store_true', default=False,
                     help="training transforms")
 parser.add_argument('--n_classes', type=int, default=12,
@@ -86,7 +86,8 @@ def main():
 
     # DATALOADER
 
-    train_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=True, mode=args.mode, rgb=rgb, normalization_type=1,
+    train_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=True, mode=args.mode, rgb=rgb,
+                                    normalization_type=1,
                                     n_frames=args.n_frames, resize_dim=args.input_size,
                                     transform_train=args.train_transforms)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.n_workers)
@@ -182,9 +183,17 @@ def main():
 
     elif args.model == 'C3D':
         model = C3D(args.n_classes).to(device)
+    # Conv-lstm
+    elif args.model == 'Conv-lstm':
+        model = ConvLSTM(input_size=(args.input_size, args.input_size),
+                         input_dim=in_channels,
+                         hidden_dim=args.hidden_size,
+                         kernel_size=(3, 3),
+                         num_layers=args.n_layers,
+                         batch_first=True).to(device)
+
     else:
-        print('no model selected')
-        exit(-1)
+        raise NotImplementedError
 
     if args.opt == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)

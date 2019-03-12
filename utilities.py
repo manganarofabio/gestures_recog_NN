@@ -4,7 +4,9 @@ from torchvision import transforms
 import random
 import torch as th
 import json
-
+import math
+import gzip
+import os
 
 # file has to be already opened
 def print_training_info(log_file, writer, epoch, step, running_loss, train_running_accuracy, loss, nof_steps,
@@ -17,22 +19,67 @@ def print_training_info(log_file, writer, epoch, step, running_loss, train_runni
         epoch, step, running_loss / (step + 1), train_running_accuracy / (step + 1) * 100))
     # print su tensorboard
 
-    writer.add_scalar('data/train_loss', loss.item(), epoch * nof_steps + step)
+    writer.add_scalar('data/train_loss', loss, epoch * nof_steps + step)
     writer.add_scalar('data/train_accuracy', train_accuracy, epoch * nof_steps + step)
 
 
 def print_validation_info(log_file, writer, epoch, step, running_loss, validation_running_accuracy, loss, nof_steps,
                           validation_accuracy):
     # print su terminal
-    print('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%'.format(
+    print('[epoch: {:d}, iter:  {:5d}] val_loss(avg): {:.3f}\t val_acc(avg): {:.3f}%'.format(
         epoch, step, running_loss / (step + 1), validation_running_accuracy / (step + 1) * 100))
     # print su file
-    log_file.write('[epoch: {:d}, iter:  {:5d}] loss(avg): {:.3f}\t train_acc(avg): {:.3f}%\n'.format(
+    log_file.write('[epoch: {:d}, iter:  {:5d}] val_loss(avg): {:.3f}\t val_acc(avg): {:.3f}%\n'.format(
         epoch, step, running_loss / (step + 1), validation_running_accuracy / (step + 1) * 100))
     # print su tensorboard
 
-    writer.add_scalar('data/validation_loss', loss.item(), epoch * nof_steps + step)
+    writer.add_scalar('data/validation_loss', loss, epoch * nof_steps + step)
     writer.add_scalar('data/validation_accuracy', validation_accuracy, epoch * nof_steps + step)
+
+def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim):
+
+    rgb = True if mode == 'rgb' else False
+    center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
+    crop_limit = math.floor(n_frames / 2)
+    start = center_of_list - crop_limit
+    end = center_of_list + crop_limit
+    list_of_img_of_same_record_cropped = list_of_img_of_same_record[
+                                         start: end + 1 if n_frames % 2 == 1 else end]
+
+    list_img = []
+    for img_path in list_of_img_of_same_record_cropped:
+        if mode != 'depth_z':
+            img = cv2.imread(img_path, 0 if not rgb else 1)
+            img = cv2.resize(img, (resize_dim, resize_dim))
+            if not rgb:
+                img = np.expand_dims(img, axis=2)
+        elif mode == 'depth_z':
+            f = gzip.GzipFile(img_path, "r")
+            img = np.loadtxt(f)
+            img = cv2.resize(img, (resize_dim, resize_dim))
+            img = np.expand_dims(img, axis=2)
+        list_img.append(img)
+
+    # concateno numpy array
+    clip = np.concatenate(list_img, axis=2)
+    return clip.transpose([2, 0, 1])
+
+
+def create_result_json(out_file, result_dir, accuracy, conf_matrix, class_correct, class_total):
+
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir)
+
+    data = {'accuracy': accuracy,
+            'conf_matrix': conf_matrix,
+            'class_correct': class_correct,
+            'class_total': class_total
+            }
+
+    with open("{}/{}.json".format(result_dir, out_file), 'w') as out_file:
+        json.dump(data, out_file)
+
+    out_file.close()
 
 
 
@@ -40,9 +87,9 @@ def image_processing(img, type=1):
     pass
 
 
-def normalization(img, type=1):
+def normalization(img, mean, std, type=1):
     if type == 1:
-        img = (img - np.mean(img)) / np.std(img)
+        img = (img - mean) / std
 
     return img
 
