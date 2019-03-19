@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 import argparse
 from dataloader import GesturesDataset
-from models import LeNet, AlexNet, AlexNetBN, Vgg16, Rnn, C3D, ConvLSTM
+from models import LeNet, AlexNet, AlexNetBN, Vgg16, Rnn, C3D, ConvLSTM, DeepConvLstm
 from trainer import Trainer
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -46,6 +46,7 @@ parser.add_argument('--n_workers', type=int, default=2,
                     help="number of workers")
 parser.add_argument('--mode', type=str, default='rgb',
                     help='mode of dataset')
+parser.add_argument('--gray_scale', action='store_true', default=False)
 parser.add_argument('--n_frames', type=int, default=40,
                     help='number of frames per input')
 parser.add_argument('--input_size', type=int, default=224, # 227 alexnet, 64 lenet, 224 vgg16 and Resnet, denseNet
@@ -55,12 +56,11 @@ parser.add_argument('--train_transforms', action='store_true', default=False,
 parser.add_argument('--n_classes', type=int, default=12,
                     help='number of frames per input')
 # LSTM
-parser.add_argument('--input_size_rnn', type=int, default=675, # num features leap_motion
-                    help='input size of rnn')
 parser.add_argument('--hidden_size', type=int, default=256,
                     help='hidden size of rnn')
 parser.add_argument('--n_layers', type=int, default=2,
                     help='n layers of rnn')
+parser.add_argument('--tracking_data_mod', action='store_true', default=False)
 
 # parser.add_argument('--weight_dir', type=str)
 parser.add_argument('--exp_name', type=str, default="prova")
@@ -84,16 +84,22 @@ def main():
     if args.mode == 'rgb':
         rgb = True
 
+    if args.gray_scale:
+        rgb = False
+
+    if args.tracking_data_mod is True:
+        args.input_size = 192
+
     # DATALOADER
 
     train_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=True, mode=args.mode, rgb=rgb,
                                     normalization_type=1,
                                     n_frames=args.n_frames, resize_dim=args.input_size,
-                                    transform_train=args.train_transforms)
+                                    transform_train=args.train_transforms, tracking_data_mod=args.tracking_data_mod)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.n_workers)
 
     validation_dataset = GesturesDataset(model=args.model, csv_path='csv_dataset', train=False, mode=args.mode, rgb=rgb, normalization_type=1,
-                                   n_frames=args.n_frames, resize_dim=args.input_size)
+                                   n_frames=args.n_frames, resize_dim=args.input_size, tracking_data_mod=args.tracking_data_mod)
     validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.n_workers)
 
     # paramteri per la rete
@@ -175,22 +181,43 @@ def main():
         model = model.to(device)
     # RNN
     elif args.model == 'LSTM' or args.model == 'GRU':
-        model = Rnn(rnn_type=args.model, input_size=args.input_size_rnn, hidden_size=args.hidden_size,
+        model = Rnn(rnn_type=args.model, input_size=args.input_size, hidden_size=args.hidden_size,
                     batch_size=args.batch_size,
                     num_classes=args.n_classes, num_layers=args.n_layers,
                     final_layer=args.final_layer).to(device)
     # C3D
 
     elif args.model == 'C3D':
-        model = C3D(args.n_classes).to(device)
+        if args.pretrained:
+            model = C3D(rgb=rgb, num_classes=args.n_classes)
+
+
+            # modifico parametri
+            print('ok')
+
+            model.load_state_dict(torch.load('c3d_weights/c3d.pickle', map_location=device), strict=False)
+            # for params in model.parameters():
+            #     params.required_grad = False
+
+            model.conv1 = nn.Conv3d(1 if not rgb else 3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+            model.fc6 = nn.Linear(16384, 4096)  # num classes 28672 (112*200)
+            model.fc8 = nn.Linear(4096, n_classes)  # num classes
+
+            model = model.to(device)
+
+
     # Conv-lstm
     elif args.model == 'Conv-lstm':
         model = ConvLSTM(input_size=(args.input_size, args.input_size),
-                         input_dim=in_channels,
-                         hidden_dim=args.hidden_size,
+                         input_dim=1 if not rgb else 3,
+                         hidden_dim=[64, 128],
                          kernel_size=(3, 3),
                          num_layers=args.n_layers,
-                         batch_first=True).to(device)
+                         batch_first=True,
+                         ).to(device)
+    elif args.model == 'DeepConvLstm':
+        model = DeepConvLstm(input_channels_conv=1 if not rgb else 3, input_size_conv=args.input_size, n_classes=12,
+                             n_frames=args.n_frames, batch_size=args.batch_size).to(device)
 
     else:
         raise NotImplementedError
@@ -237,13 +264,15 @@ def main():
                     "\n\nweight_decay:{}"
                     "\n\nn_frames:{}"
                     "\n\ninput_size:{}"
+                    "\n\nhidden_size:{}"
+                    "\n\ntracking_data_mode:{}"
                     "\n\nn_classes:{}"
                     "\n\nmode:{}"
                     "\n\nn_workers:{}"
                     "\n\nseed:{}"
                     "\n\ninfo:{}"
                     "".format(args.model, args.pretrained, args.batch_size, args.epochs, args.opt, args.lr, args.dn_lr, args.momentum,
-                              args.weight_decay, args.n_frames, args.input_size,
+                              args.weight_decay, args.n_frames, args.input_size, args.hidden_size, args.tracking_data_mod,
                               args.n_classes, args.mode, args.n_workers, args.seed, info_experiment))
 
     rnn = True if args.model == 'Lstm' else False

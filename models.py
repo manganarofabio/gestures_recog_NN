@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 from torch.nn import functional as F
+import numpy as np
 
 
 # output channels inspired by tutorial pytorch
@@ -247,6 +248,7 @@ class Gru(nn.Module):
 class Rnn(nn.Module):
     def __init__(self, input_size, hidden_size, batch_size, num_classes, num_layers=2, rnn_type='LSTM', final_layer='fc'):
         super(Rnn, self).__init__()
+        self.input_size = input_size
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.num_classes = num_classes
@@ -256,7 +258,8 @@ class Rnn(nn.Module):
 
         if self.rnn_type == 'LSTM':
 
-            self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+            self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True,
+                               dropout=0.2)
             self.rnn1 = nn.LSTM(input_size=hidden_size, hidden_size=num_classes, batch_first=True)
         elif self.rnn_type == 'GRU':
             self.rnn = nn.GRU(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers,
@@ -267,7 +270,7 @@ class Rnn(nn.Module):
             raise NotImplementedError
 
         self.dropout = nn.Dropout(p=0.2)
-        self.fc = nn.Linear(hidden_size, hidden_size//2 if self.final_layer == 'fc2' else num_classes)
+        self.fc = nn.Linear(hidden_size, hidden_size//2 if self.final_layer == 'fc1' else num_classes)
         self.fc1 = nn.Linear(hidden_size//2, num_classes)
 
     def forward(self, x):
@@ -283,7 +286,7 @@ class Rnn(nn.Module):
             out = self.dropout(out)
             out = self.fc(out)
 
-        elif self.final_layer == 'fc2':
+        elif self.final_layer == 'fc1':
             # vogliamo solo l'ultimo output
 
             out = out[:, -1]
@@ -310,9 +313,13 @@ class C3D(nn.Module):
     The C3D network as described in [1].
     """
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, rgb):
         super(C3D, self).__init__()
 
+        self.num_classe = num_classes
+        self.rgb = rgb
+
+        # self.conv1 = nn.Conv3d(1 if not self.rgb else 3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
 
@@ -331,9 +338,9 @@ class C3D(nn.Module):
         self.conv5b = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool5 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 1, 1))
 
-        self.fc6 = nn.Linear(28672, 4096) # modificato l'input
+        self.fc6 = nn.Linear(8192, 4096) # modificato l'input da modificare in base all'input 112*112 (112*200 = 28672; 112*112 = 16384) (prima era 8192
         self.fc7 = nn.Linear(4096, 4096)
-        self.fc8 = nn.Linear(4096, num_classes)
+        self.fc8 = nn.Linear(4096, 487) # num classes
         # added
         # self.fc9 = nn.Linear(2048, 1024)
         # self.fc10 = nn.Linear(1024, num_classes)
@@ -556,3 +563,161 @@ References
 Proceedings of the IEEE international conference on computer vision. 2015.
 """
 
+
+class DeepConvLstm(nn.Module):
+
+    def __init__(self, input_channels_conv, input_size_conv, n_classes, batch_size, n_frames=40):
+        super(DeepConvLstm, self).__init__()
+
+        self.input_channels_conv = input_channels_conv
+        self.input_size_conv = input_size_conv
+        self.n_classes = n_classes
+        self.batch_size = batch_size
+        self.n_frames = n_frames
+
+        self.conv = nn.Conv2d(in_channels=self.input_channels_conv, out_channels=32, kernel_size=3)
+        self.conv1 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3))
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3))
+
+        self.convLstm = ConvLSTM(input_size=(26, 26),
+                                 input_dim=128,
+                                 hidden_dim=[128, 128],
+                                 kernel_size=(3, 3),
+                                 num_layers=2,
+                                 batch_first=True
+                                 )
+
+        self.conv3 = nn.Conv2d(in_channels=128, out_channels=12, kernel_size=3)
+
+    def forward(self, x):
+
+        # trasformo il tensore in input da b, s, c, h, w in b*s, :
+        x = x.view(x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4])
+
+        x = F.max_pool2d(F.relu(self.conv(x)), kernel_size=(2, 2))
+        x = F.max_pool2d(F.relu(self.conv1(x)), kernel_size=(2, 2))
+        x = F.max_pool2d(F.relu(self.conv2(x)), kernel_size=(2, 2))
+        # ritorno alla dimensione b, s, c, h, w per la conv lstm
+
+        x = x.view(self.batch_size, self.n_frames, x.shape[1], x.shape[2], x.shape[3])
+
+        # x = x.unsqueeze(dim=2)
+        x = self.convLstm(x)
+        # prendo l'ultimo hs
+        x = x[0][0][:, -1]
+        out = F.adaptive_avg_pool2d(self.conv3(x), (1, 1))
+        out = torch.squeeze(out, dim=-1)
+        out = torch.squeeze(out, dim=-1)
+
+        return out
+
+
+class CrossConvNet(nn.Module):
+    def __init__(self, n_classes, depth_model, ir_model, rgb_model, mode='depth_ir_rgb', cross_mode=None):
+        super(CrossConvNet, self).__init__()
+
+        self.n_classes = n_classes
+
+
+        self.depth_model = depth_model
+        self.ir_model = ir_model
+        self.rgb_model = rgb_model
+        self.mode = mode
+        self.cross_mode = cross_mode
+
+
+
+        #modifiche ultimop layer reti
+        # self.model_depth_ir.classifier = nn.Linear(in_features=2208, out_features=128)
+        # self.model_rgb.classifier = nn.Linear(in_features=2208, out_features=128)
+        # self.model_lstm.fc = nn.Linear(in_features=512, out_features=128)
+        self.conv = nn.Conv2d(in_channels=2208 * 3 if self.mode == 'depth_ir_rgb' else 2208 * 2
+                              , out_channels=512, kernel_size=3)
+        self.conv1 = nn.Conv2d(in_channels=512, out_channels=128, kernel_size=3)
+        self.fc = nn.Linear(in_features=1152, out_features=256)
+        self.fc1 = nn.Linear(in_features=256, out_features=self.n_classes)
+
+    def forward(self, *input):
+
+
+        out_depth, out_ir, out_rgb, x_depth, x_ir, x_rgb = None, None, None, None, None, None
+        xs = [value for value in input]
+
+        if self.mode == 'depth_ir_rgb':
+            x_depth = xs[0]
+            x_ir = xs[1]
+            x_rgb = xs[2]
+        elif self.mode == 'depth_ir':
+            x_depth = xs[0]
+            x_ir = xs[1]
+        elif self.mode == 'depth_rgb':
+            x_depth = xs[0]
+            x_rgb = xs[1]
+        elif self.mode == 'ir_rgb':
+            x_ir = xs[0]
+            x_rgb = xs[1]
+
+        with torch.no_grad():
+            if x_depth is not None:
+                out_depth = self.depth_model(x_depth)
+
+            if x_ir is not None:
+                out_ir = self.ir_model(x_ir)
+
+            if x_rgb is not None:
+                out_rgb = self.rgb_model(x_rgb)
+
+        # concateno le  3 uscite
+        if out_depth is not None and out_ir is not None and out_rgb is not None:
+            if self.cross_mode == 'avg':
+                x = (out_depth + out_ir + out_rgb)/3
+            else:
+                x = torch.cat((out_depth, out_ir, out_rgb), 1)
+        # concateno gli out
+        elif out_depth is not None and out_ir is not None:
+            if self.cross_mode == 'avg':
+                x = (out_depth + out_ir)/2
+            else:
+                x = torch.cat((out_depth, out_ir), 1)
+        elif out_depth is not None and out_rgb is not None:
+            if self.cross_mode == 'avg':
+                x = (out_depth + out_rgb)/2
+            else:
+                x = torch.cat((out_depth, out_rgb), 1)
+        elif out_ir is not None and out_rgb is not None:
+            if self.cross_mode == 'avg':
+                x = (out_ir + out_rgb)/2
+            else:
+                x = torch.cat((out_ir, out_rgb), 1)
+
+        if self.cross_mode == 'avg':
+            out = x
+        else:
+            x = F.relu(self.conv(x))
+            x = F.dropout2d(x, p=0.2)
+            x = F.relu(self.conv1(x))
+            x = F.dropout2d(x, p=0.2)
+
+            x = x.view(-1, self.num_flat_features(x))
+
+            x = F.dropout(self.fc(x), p=0.2)
+            out = self.fc1(x)
+
+        return out
+
+        # # concateno gli out
+        # if out_depth and out_ir:
+        #     out = torch.cat((out_depth, out_ir), 1)
+        # elif out_depth and out_rgb:
+        #     out = torch.cat((out_depth, out_rgb), 1)
+        # elif out_ir and out_rgb:
+        #     out = torch.cat((out_ir, out_rgb), 1)
+
+        # out = F.dropout(F.relu(self.fc(out)), p=0.2)
+        # out = F.dropout(F.relu(self.fc1(out)), p=0.2)
+        # out = self.fc2(out)
+        #
+        # return out
+
+    def num_flat_features(self, x):
+        return torch.prod(torch.tensor(x.size()[1:]))

@@ -36,9 +36,10 @@ def print_validation_info(log_file, writer, epoch, step, running_loss, validatio
     writer.add_scalar('data/validation_loss', loss, epoch * nof_steps + step)
     writer.add_scalar('data/validation_accuracy', validation_accuracy, epoch * nof_steps + step)
 
-def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim):
 
-    rgb = True if mode == 'rgb' else False
+def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim, DeepConvLstm=False, rgb=False):
+
+    # rgb = True if mode == 'rgb' else False
     center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
     crop_limit = math.floor(n_frames / 2)
     start = center_of_list - crop_limit
@@ -61,11 +62,19 @@ def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim):
         list_img.append(img)
 
     # concateno numpy array
-    clip = np.concatenate(list_img, axis=2)
-    return clip.transpose([2, 0, 1])
+    if not DeepConvLstm:
+        clip = np.concatenate(list_img, axis=2)
+        clip = clip.transpose([2, 0, 1])
+
+    else:
+        clip = np.asarray(list_img)
+        clip = clip.transpose([0, 3, 1, 2])
+
+    return clip
 
 
-def create_result_json(out_file, result_dir, accuracy, conf_matrix, class_correct, class_total):
+def create_result_json(out_file, result_dir, accuracy, conf_matrix, class_correct, class_total, list_of_pred,
+                       list_of_gt):
 
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
@@ -73,46 +82,15 @@ def create_result_json(out_file, result_dir, accuracy, conf_matrix, class_correc
     data = {'accuracy': accuracy,
             'conf_matrix': conf_matrix,
             'class_correct': class_correct,
-            'class_total': class_total
+            'class_total': class_total,
+            'list_of_pred': list_of_pred,
+            'list_of_gt': list_of_gt
             }
-
-    with open("{}/{}.json".format(result_dir, out_file), 'w') as out_file:
+    with open("{}/{}.json".format(result_dir, out_file[:-4]), 'w') as out_file:
         json.dump(data, out_file)
-
     out_file.close()
 
-
-
-def image_processing(img, type=1):
-    pass
-
-
-def normalization(img, mean, std, type=1):
-    if type == 1:
-        img = (img - mean) / std
-
-    return img
-
-
-def adjust_learning_rate(lr, epoch, optimizer):
-
-    if epoch > 180:
-        lr = lr / 1000000
-    elif epoch > 150:
-        lr = lr / 100000
-    elif epoch > 120:
-        lr = lr / 10000
-    elif epoch > 90:
-        lr = lr / 1000
-    elif epoch > 60:
-        lr = lr / 100
-    elif epoch > 30:
-        lr = lr / 10
-
-    for param_group in optimizer.param_groups:
-        param_group["lr"] = lr
-
-
+# full 675, full_no_fingers 145, mod 192
 def from_json_to_list(json_file):
     with open(json_file) as f:
         j = json.load(f)
@@ -804,9 +782,161 @@ def from_json_to_list(json_file):
         return j_vector, j
 
 
+def extract_features_tracking_data(js):
+    # len 96
+    js = [
+          js[0], js[1], js[2], js[3], js[4], js[5],  # palm
+          js[176], js[177], js[178], js[179], js[180], js[181],  # thumb 0
+          js[202], js[203], js[204], js[205], js[206], js[207],  # thumb 1
+          js[228], js[229], js[230], js[231], js[232], js[233],  # thumb 2
+          js[282], js[283], js[284], js[285], js[286], js[287],  # index 0
+          js[308], js[309], js[310], js[311], js[312], js[313],  # index 1
+          js[334], js[335], js[336], js[337], js[338], js[339],  # index 2
+          js[388], js[389], js[390], js[391], js[392], js[393],  # middle 0
+          js[414], js[415], js[416], js[417], js[418], js[419],  # middle 1
+          js[440], js[441], js[442], js[443], js[444], js[445],  # middle 2
+          js[494], js[495], js[496], js[497], js[498], js[499],  # ring 0
+          js[520], js[521], js[522], js[523], js[524], js[525],  # ring 1
+          js[546], js[547], js[548], js[549], js[550], js[551],  # ring 2
+          js[600], js[601], js[602], js[603], js[604], js[605],  # pinky 0
+          js[626], js[627], js[628], js[629], js[630], js[631],  # pinky 1
+          js[652], js[653], js[654], js[655], js[656], js[657],  # pinky 2
+          ]
+    return js
+
+def increase_input_size_per_record(record, coeff=1000):
+
+    mask = [True, True, True, False, False, False] * 16
+
+
+    list_inc_features_vel = []
+    list_inc_features_acc = []
+
+    for j in range(len(record)):
+        if j == 0:
+            list_inc_features_vel.append(list(np.ones(16 * 3) / coeff))
+            list_inc_features_acc.append(list(np.ones(16 * 3) / coeff))
+        if j == 1:
+            list_inc_features_acc.append(list(np.ones(16 * 3) / coeff))
+        if j >= 1:
+            list_inc_features_vel.append(
+                list(np.asarray(record[j])[mask] - np.asarray(record[j - 1])[mask])
+            )
+            if j >= 2:
+                list_inc_features_acc.append(
+                    list((np.asarray(list_inc_features_vel[j]) - list_inc_features_vel[j - 1]))
+                )
+
+    # accelerazione
+    list_inc_features_vel = np.hstack((list_inc_features_vel, list_inc_features_acc))
+
+    record = (np.hstack((record, list_inc_features_vel))).tolist()  #192 input size
+
+    # print('input size increased')
+    return record
+
+
+def image_processing(img, type=1):
+    pass
+
+
+def normalization(img, mean, std, type=1):
+    if type == 1:
+        img = (img - mean) / std
+
+    return img
+
+
+def adjust_learning_rate(lr, epoch, optimizer):
+
+    if epoch > 180:
+        lr = lr / 1000000
+    elif epoch > 150:
+        lr = lr / 100000
+    elif epoch > 120:
+        lr = lr / 10000
+    elif epoch > 90:
+        lr = lr / 1000
+    elif epoch > 60:
+        lr = lr / 100
+    elif epoch > 30:
+        lr = lr / 10
+
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr
+
+
 ##############
 # TRANSFORMS #
 ##############
+
+# def increase_input_size_tracking_data(list_data, acceleration=False, coeff=1000):
+#
+#
+#     list_file_increased = []
+#     mask = [True, True, True, False, False, False, False] * 16
+#     for i, file in enumerate(files):
+#         list_inc_features_vel = []
+#         list_inc_features_acc = []
+#         labels = []
+#         if not classification:
+#             labels = [frame[1] for frame in file]
+#         for j in range(len(file)):
+#             if j == 0:
+#                 list_inc_features_vel.append(list(np.ones(16 * 3) / coeff))
+#                 list_inc_features_acc.append(list(np.ones(16 * 3) / coeff))
+#             if j == 1:
+#                 list_inc_features_acc.append(list(np.ones(16 * 3) / coeff))
+#             if j >= 1:
+#                 list_inc_features_vel.append(list(np.asarray(file[j])[mask] - np.asarray(file[j - 1])[mask] if classification else
+#                                              np.asarray(file[j][0])[mask] - np.asarray(file[j-1][0])[mask]))
+#                 if j >= 2:
+#                     list_inc_features_acc.append(list((np.asarray(list_inc_features_vel[j]) - list_inc_features_vel[j - 1])))
+#
+#         if acceleration:
+#             list_inc_features_vel = np.hstack((list_inc_features_vel, list_inc_features_acc))
+#
+#         file = (np.hstack((file if classification else [frame[0] for frame in file], list_inc_features_vel))).tolist()
+#         if not classification:
+#             file = [(frame, labels[i]) for i, frame in enumerate(file)]
+#         list_file_increased.append(file)
+#
+#     list_data_increased = []
+#     for i in range(len(list_data)):
+#         if len(list_data[0]) == 3: # if item mode == first_balanced
+#             list_data_increased.append([list_file_increased[i], list_data[i][1], list_data[i][2]])
+#         else:
+#             list_data_increased.append((list_file_increased[i], list_data[i][1]))
+#
+#     list_data = list_data_increased
+#     print('input size increased')
+#     return list_data
+#
+# else:
+#
+#     list_inc_features_vel = []
+#     list_inc_features_acc = []
+#     for j in range(len(list_data)):
+#         if j == 0:
+#             list_inc_features_vel.append(list(np.ones(112) / coeff))
+#             list_inc_features_acc.append(list(np.ones(112) / coeff))
+#         if j == 1:
+#             list_inc_features_acc.append(list(np.ones(112) / coeff))
+#         if j >= 1:
+#             list_inc_features_vel.append(list((np.asarray(list_data[j]) - list_data[j - 1])))
+#             if j >= 2:
+#                 list_inc_features_acc.append(
+#                     list((np.asarray(list_inc_features_vel[j]) - list_inc_features_vel[j - 1])))
+#
+#     if acceleration:
+#         list_inc_features_vel = np.hstack((list_inc_features_vel, list_inc_features_acc))
+#
+#     list_data = (np.hstack((list_data, list_inc_features_vel))).tolist()
+#     # if not classification:
+#     #     file = [(frame, labels[i]) for i, frame in enumerate(file)]
+#     # list_file_increased.append(file)
+#
+#     return list_data
 
 
 class Rescale(object):

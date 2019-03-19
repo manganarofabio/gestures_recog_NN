@@ -167,7 +167,7 @@ class Trainer(object):
                 'epoch': epoch,
                 'running_loss': validation_loss.item(),
                 'accuracy': validation_accuracy,
-                'avg_loss': running_validation_loss/ (step + 1),
+                'avg_loss': running_validation_loss/(step + 1),
                 'state_dict': self.model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'info': self.personal_name
@@ -183,35 +183,35 @@ class Trainer(object):
                 self.best_val_loss_state = state
                 self.best_val_acc_state = state
 
-                # save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_acc_checkpoint_{}.pth.tar'.format(
-                #     self.weight_dir, self.personal_name)
-                # torch.save(state, save_path)
+                save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_acc_checkpoint_{}.pth.tar'.format(
+                     self.weight_dir, self.personal_name)
+                torch.save(state, save_path)
 
             else:
                 if validation_loss <= self.best_val_loss:
                     self.best_val_loss = validation_loss
                     self.best_val_loss_state = state
-                    # save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_loss_checkpoint_{}.pth.tar'.format(
-                    #     self.weight_dir, self.personal_name)
-                    #
-                    # torch.save(state, save_path)
+                    save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_loss_checkpoint_{}.pth.tar'.format(
+                        self.weight_dir, self.personal_name)
+
+                    torch.save(state, save_path)
 
                 if validation_accuracy >= self.best_val_acc:
                     self.best_val_acc = validation_accuracy
                     self.best_val_acc_state = state
-                    # save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_acc_checkpoint_{}.pth.tar'.format(
-                    #     self.weight_dir, self.personal_name)
-                    #
-                    # torch.save(state, save_path)
+                    save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_acc_checkpoint_{}.pth.tar'.format(
+                        self.weight_dir, self.personal_name)
+
+                    torch.save(state, save_path)
 
     def __del__(self):
 
         self.writer.close()
         # prima di chiudere in trainig salvo i migliori stati
-        save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_loss_checkpoint_{}_ep_{}.pth.tar'.format(
-            self.weight_dir, self.personal_name, self.best_val_loss_state['epoch'])
+        save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_loss_checkpoint_{}.pth.tar'.format(
+            self.weight_dir, self.personal_name)
         torch.save(self.best_val_loss_state, save_path)
 
-        save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_acc_checkpoint_{}_ep_{}.pth.tar'.format(
-            self.weight_dir, self.personal_name, self.best_val_acc_state['epoch'])
+        save_path = '/projects/fabio/weights/gesture_recog_weights/{}/best_val_acc_checkpoint_{}.pth.tar'.format(
+            self.weight_dir, self.personal_name)
         torch.save(self.best_val_acc_state, save_path)
