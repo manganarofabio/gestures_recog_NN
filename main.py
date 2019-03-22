@@ -155,8 +155,8 @@ def main():
 
     elif args.model == "DenseNet161P":
         model = models.densenet161(pretrained=args.pretrained)
-        for params in model.parameters():
-            params.requires_grad = False
+        # for params in model.parameters():
+        #     params.requires_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
@@ -202,6 +202,7 @@ def main():
             model.conv1 = nn.Conv3d(1 if not rgb else 3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
             # tolgo fc6 perchè 30 frames
             model.fc6 = nn.Linear(16384, 4096)  # num classes 28672 (112*200)
+            model.fc7 = nn.Linear(4096, 4096)  # num classes
             model.fc8 = nn.Linear(4096, n_classes)  # num classes
 
             model = model.to(device)
@@ -278,12 +279,10 @@ def main():
                               args.weight_decay, args.n_frames, args.input_size, args.hidden_size, args.tracking_data_mod,
                               args.n_classes, args.mode, args.n_workers, args.seed, info_experiment))
 
-    rnn = True if args.model == 'Lstm' else False
-
     trainer = Trainer(model=model, loss_function=loss_function, optimizer=optimizer, train_loader=train_loader,
                       validation_loader=validation_loader,
                       batch_size=args.batch_size, initial_lr=args.lr,  device=device, writer=writer, personal_name=personal_name, log_file=log_file,
-                      weight_dir=weight_dir, dynamic_lr=args.dn_lr, rnn=rnn)
+                      weight_dir=weight_dir, dynamic_lr=args.dn_lr)
 
 
     print("experiment: {}".format(personal_name))

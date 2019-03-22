@@ -8,13 +8,11 @@ import os
 class Trainer(object):
     def __init__(self, model, loss_function, optimizer, train_loader, validation_loader, batch_size, initial_lr, device, writer, personal_name,
                  log_file, weight_dir,
-                 dynamic_lr=False, rnn=False, verbose=True, num_classes=12):
+                 dynamic_lr=False, verbose=True, num_classes=12):
 
         self.model = model
         self.loss_function = loss_function
         self.optimizer = optimizer
-
-        self.rnn = rnn
 
         # data loaders
         self.train_loader = train_loader

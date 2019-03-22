@@ -260,32 +260,40 @@ class GesturesDataset(Dataset):
 
         if self.model == 'C3D':
             if self.mode == 'depth_z':
-                clip = np.array([np.expand_dims(cv2.resize(np.loadtxt(gzip.GzipFile(frame, 'r')),
-                                                                     (112, 112)), axis=2)
-                                 for frame in list_of_img_of_same_record_cropped])
+                # clip = np.asarray([np.expand_dims(cv2.resize(np.loadtxt(gzip.GzipFile(frame, 'r')),
+                #                                                      (112, 112)), axis=2)
+                #                  for frame in list_of_img_of_same_record_cropped])
+                clip = []
+                for img_path in list_of_img_of_same_record_cropped:
+                    f = gzip.GzipFile(img_path, "r")
+                    img = np.loadtxt(f)
+                    img = cv2.resize(img, (112, 112))
+                    img = np.expand_dims(img, axis=2)
+                    clip.append(img)
+                clip = np.asarray(clip)
             elif self.mode == 'depth_ir':
-                clip = np.array(
+                clip = np.asarray(
                     [np.expand_dims(cv2.resize(cv2.imread(frame, False), (112, 112)), axis=2) for frame in
                      list_of_img_of_same_record_cropped])
 
             elif self.mode == 'rgb':
                 if self.rgb:
-                    clip = np.array(
+                    clip = np.asarray(
                         [cv2.resize(cv2.imread(frame, self.rgb), (112, 112)) for frame in
                          list_of_img_of_same_record_cropped]
                     )
                 else: # gray scale
-                    clip = np.array(
+                    clip = np.asarray(
                         [np.expand_dims(cv2.resize(cv2.imread(frame, self.rgb), (112, 112)), axis=2) for frame in
                          list_of_img_of_same_record_cropped]
                     )
 
             clip = clip.transpose([3, 0, 1, 2])  # ch, fr, h, w
-            clip = np.float32(clip)
+            clip = clip.astype(np.float32)
             if self.normalization_type is not None:
                 clip = utilities.normalization(clip, self.mean, self.std, 1)
 
-            return torch.from_numpy(clip), target
+            return clip, target
 
         elif self.model == 'DeepConvLstm':
             # if self.mode == 'depth_z':
