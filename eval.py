@@ -9,7 +9,8 @@ import utilities
 import torch
 import random
 import tqdm
-from models import CrossConvNet
+from models import CrossConvNet, Rnn
+import math
 
 parser = argparse.ArgumentParser(description='Evaluator')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -163,11 +164,11 @@ class GestureTestSet(Dataset):
             # self.std_R_undistorted = file['arr_1']
             # print('mean, std R_undistorted loaded.'.format(self.mode))
             #
-            # # leap_motion_tracking_data
-            # file = np.load("mean_std_leap_motion_tracking_data.npz")
-            # self.mean_leap_motion_tracking_data = file['arr_0']
-            # self.std_leap_motion_tracking_data = file['arr_1']
-            # print('mean, std leap_motion_tracking_data loaded.'.format(self.mode))
+            # leap_motion_tracking_data
+            file = np.load("mean_std_leap_motion_tracking_data.npz")
+            self.mean_leap_motion_tracking_data = file['arr_0']
+            self.std_leap_motion_tracking_data = file['arr_1']
+            print('mean, std leap_motion_tracking_data loaded.'.format(self.mode))
 
             print('dataset_initialized')
 
@@ -195,6 +196,41 @@ class GestureTestSet(Dataset):
             list_same_mode_ir = self.list_of_rows_with_same_mode[1]
             img_data_rgb = self.list_data[2][item]
             list_same_mode_rgb = self.list_of_rows_with_same_mode[2]
+
+        elif self.mode == 'leap_motion_tracking_data':
+            img_data_track = self.list_data[7][item]
+            target = torch.LongTensor(np.asarray([int(img_data_track[5])]))
+
+            list_same_mode_tracking_data = self.list_of_rows_with_same_mode[7]
+
+            list_of_img_of_same_record = [img[0] for img in list_same_mode_tracking_data
+                                          if img[1] == img_data_track[1]  # sessione
+                                          and img[2] == img_data_track[2]  # gesture
+                                          and img[3] == img_data_track[3]
+                                          ]  # record
+
+            center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
+            crop_limit = math.floor(self.n_frames / 2)
+            start = center_of_list - crop_limit
+            end = center_of_list + crop_limit
+            list_of_img_of_same_record_cropped = list_of_img_of_same_record[
+                                                 start: end + 1 if self.n_frames % 2 == 1 else end]
+
+            img_data_track = []
+            for js in list_of_img_of_same_record_cropped:
+                f_js, j = utilities.from_json_to_list(js)
+                # if self.tracking_data_mod:
+                #     f_js = utilities.extract_features_tracking_data(f_js)
+                img_data_track.append(f_js)
+
+            # normalizzo
+            # img_data_track = utilities.normalization(np.asarray(img_data_track), self.mean_leap_motion_tracking_data,
+            #                         self.std_leap_motion_tracking_data)
+
+            img_data_track = (img_data_track - self.mean_leap_motion_tracking_data) / self.std_leap_motion_tracking_data
+            img_data_track = np.float32(img_data_track)
+
+            return torch.tensor(img_data_track), target
 
         else:
             raise NotImplementedError
@@ -438,7 +474,7 @@ def main():
     if args.model == 'DenseNet':
         model = models.densenet161(pretrained=True)
         # for params in model.parameters():
-        #     params.required_grad = False
+        #     params.requires_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
@@ -455,7 +491,7 @@ def main():
         if args.model_path_depth is not None:
             model_depth = models.densenet161(pretrained=True)
             # for params in model_depth.parameters():
-            #     params.required_grad = False
+            #     params.requires_grad = False
             model_depth.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames, out_channels=96, kernel_size=(7, 7),
                                                          stride=(2, 2), padding=(3, 3))
             model_depth.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
@@ -469,7 +505,7 @@ def main():
         if args.model_path_ir is not None:
             model_ir = models.densenet161(pretrained=True)
             # for params in model_ir.parameters():
-            #     params.required_grad = False
+            #     params.requires_grad = False
             model_ir.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames, out_channels=96, kernel_size=(7, 7),
                                                          stride=(2, 2), padding=(3, 3))
             model_ir.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
@@ -484,7 +520,7 @@ def main():
             model_rgb = models.densenet161(pretrained=True)
             # for params in model_rgb.parameters():
             #     params.requibed_grad = False
-            model_rgb.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames*3 if not args.grays_scale else
+            model_rgb.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames*3 if not rgb else
                                                              args.n_frames, out_channels=96, kernel_size=(7, 7),
                                                          stride=(2, 2), padding=(3, 3))
             model_rgb.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
@@ -498,16 +534,21 @@ def main():
         model = CrossConvNet(args.n_classes, depth_model=model_depth, ir_model=model_ir, rgb_model=model_rgb,
                              mode=args.mode, cross_mode=args.cross_mode).to(device)
 
+    elif args.model == 'LSTM':
+        model = Rnn(rnn_type=args.model, input_size=args.input_size, hidden_size=256,
+                    batch_size=1,
+                    num_classes=12, num_layers=2,
+                    final_layer='fc').to(device)
+
+        model.load_state_dict(torch.load(args.model_path, map_location=device)['state_dict'])
+        model.eval()
+
     result_file = "result_{}_{}_{}".format(args.model, args.mode, args.res_name)
 
     evaluator = Eval(test_loader=test_loader, model=model, mode=args.mode, device=device, result_file=result_file,
                      exp_result_dir=args.exp_result_dir, batch_size=args.batch_size)
 
     evaluator.eval()
-
-
-
-
 
 
 if __name__ == '__main__':

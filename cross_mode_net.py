@@ -218,7 +218,7 @@ def main():
     if rgb:
         model_rgb = models.densenet161().to(device)
         # for params in model_rgb.parameters():
-        #     params.required_grad = False
+        #     params.requires_grad = False
         model_rgb.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames*3, out_channels=96, kernel_size=(7, 7),
                                                          stride=(2, 2), padding=(3, 3))
         model_rgb = torch.nn.Sequential(*(list(model_rgb.children())[0][:-1]))
@@ -230,7 +230,7 @@ def main():
     if ir:
         model_ir = models.densenet161().to(device)
         # for params in model_ir.parameters():
-        #     params.required_grad = False
+        #     params.requires_grad = False
         model_ir.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames, out_channels=96, kernel_size=(7, 7),
                                                         stride=(2, 2), padding=(3, 3))
         model_ir = torch.nn.Sequential(*(list(model_ir.children())[0][:-1]))
@@ -242,7 +242,7 @@ def main():
     if depth:
         model_depth = models.densenet161().to(device)
         # for params in model_depth.parameters():
-        #     params.required_grad = False
+        #     params.requires_grad = False
         model_depth.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames, out_channels=96, kernel_size=(7, 7),
                                                            stride=(2, 2), padding=(3, 3))
         model_depth = torch.nn.Sequential(*(list(model_depth.children())[0][:-1]))

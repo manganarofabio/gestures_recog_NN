@@ -122,7 +122,7 @@ def main():
     elif args.model == "Vgg16P":
         model = models.vgg16(pretrained=args.pretrained)
         for params in model.parameters():
-            params.required_grad = False
+            params.requires_grad = False
         model.features._modules['0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(3, 3), stride=1, padding=1)
         model.classifier._modules['6'] = nn.Linear(4096, n_classes)
         # model.fc = torch.nn.Linear(model.fc.in_features, n_classes)
@@ -147,7 +147,7 @@ def main():
     elif args.model == "DenseNet121P":
         model = models.densenet121(pretrained=args.pretrained)
         for params in model.parameters():
-            params.required_grad = False
+            params.requires_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=1024, out_features=n_classes, bias=True)
@@ -156,7 +156,7 @@ def main():
     elif args.model == "DenseNet161P":
         model = models.densenet161(pretrained=args.pretrained)
         for params in model.parameters():
-            params.required_grad = False
+            params.requires_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
@@ -165,7 +165,7 @@ def main():
     elif args.model == "DenseNet169P":
         model = models.densenet169(pretrained=args.pretrained)
         for params in model.parameters():
-            params.required_grad = False
+            params.requires_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=1664, out_features=n_classes, bias=True)
@@ -174,7 +174,7 @@ def main():
     elif args.model == "DenseNet201P":
         model = models.densenet201(pretrained=args.pretrained)
         for params in model.parameters():
-            params.required_grad = False
+            params.requires_grad = False
         model.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(7, 7),
                                                      stride=(2, 2), padding=(3, 3))
         model.classifier = nn.Linear(in_features=1920, out_features=n_classes, bias=True)
@@ -195,11 +195,12 @@ def main():
             # modifico parametri
             print('ok')
 
-            model.load_state_dict(torch.load('c3d_weights/c3d.pickle', map_location=device), strict=False)
-            # for params in model.parameters():
-            #     params.required_grad = False
+            # model.load_state_dict(torch.load('c3d_weights/c3d.pickle', map_location=device), strict=False)
+            # # for params in model.parameters():
+            #     # params.requires_grad = False
 
             model.conv1 = nn.Conv3d(1 if not rgb else 3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+            # tolgo fc6 perchè 30 frames
             model.fc6 = nn.Linear(16384, 4096)  # num classes 28672 (112*200)
             model.fc8 = nn.Linear(4096, n_classes)  # num classes
 
@@ -224,6 +225,8 @@ def main():
 
     if args.opt == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+        # optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, momentum=args.momentum)
+
     elif args.opt == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 

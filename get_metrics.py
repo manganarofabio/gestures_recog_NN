@@ -4,9 +4,11 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_file', type=str, default='test_result.json')
+parser.add_argument('--title', type=str, default='title')
 
 args = parser.parse_args()
 
@@ -68,6 +70,9 @@ def plot_confusion_matrix(y_true, y_pred, classes,
 def main():
 
     print(args.input_file)
+    file = args.input_file.split('/')[1]
+    if not os.path.exists('./plots'):
+        os.makedirs('./plots')
 
     with open(args.input_file) as f:
         data = json.load(f)
@@ -75,8 +80,8 @@ def main():
     y_true, y_pred = data['list_of_gt'], data['list_of_pred']
 
     class_names = ['g0', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11']
-    plot_confusion_matrix(y_true=y_true, y_pred=y_pred, classes=class_names, normalize=False)
-    plt.show()
+    plot_confusion_matrix(y_true=y_true, y_pred=y_pred, classes=class_names, normalize=False, title=args.title)
+    plt.savefig('./plots/conf_matrix_{}.jpg'.format(file[:-5]))
 
     class_correct = data['class_correct']
     class_total = data['class_total']

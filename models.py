@@ -319,7 +319,6 @@ class C3D(nn.Module):
         self.num_classe = num_classes
         self.rgb = rgb
 
-        # self.conv1 = nn.Conv3d(1 if not self.rgb else 3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
 
@@ -338,6 +337,7 @@ class C3D(nn.Module):
         self.conv5b = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
         self.pool5 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 1, 1))
 
+        # 8192 dipende dal numero di frame che gli si passano 30 -> 8192, 40 -> 16384
         self.fc6 = nn.Linear(8192, 4096) # modificato l'input da modificare in base all'input 112*112 (112*200 = 28672; 112*112 = 16384) (prima era 8192
         self.fc7 = nn.Linear(4096, 4096)
         self.fc8 = nn.Linear(4096, 487) # num classes
@@ -576,10 +576,12 @@ class DeepConvLstm(nn.Module):
         self.n_frames = n_frames
 
         self.conv = nn.Conv2d(in_channels=self.input_channels_conv, out_channels=32, kernel_size=3)
+        #self.conv0 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3)
+
         self.conv1 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3, 3))
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3))
 
-        self.convLstm = ConvLSTM(input_size=(26, 26),
+        self.convLstm = ConvLSTM(input_size=(14, 14),
                                  input_dim=128,
                                  hidden_dim=[128, 128],
                                  kernel_size=(3, 3),
@@ -595,6 +597,7 @@ class DeepConvLstm(nn.Module):
         x = x.view(x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4])
 
         x = F.max_pool2d(F.relu(self.conv(x)), kernel_size=(2, 2))
+        # x = F.max_pool2d(F.relu(self.conv0(x)), kernel_size=(2, 2))
         x = F.max_pool2d(F.relu(self.conv1(x)), kernel_size=(2, 2))
         x = F.max_pool2d(F.relu(self.conv2(x)), kernel_size=(2, 2))
         # ritorno alla dimensione b, s, c, h, w per la conv lstm

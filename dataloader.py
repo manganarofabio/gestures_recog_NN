@@ -149,8 +149,12 @@ class GesturesDataset(Dataset):
                             frames_stack.append((frame))
 
                     # frames_stack = np.asarray([frame for frame in record for record in self.list_data[0]])
-                    self.mean = np.mean(frames_stack)
-                    self.std = np.std(frames_stack)
+                    # mean unica
+                    # self.mean = np.mean(frames_stack)
+                    # self.std = np.std(frames_stack)
+                    # mean shrec
+                    self.mean = np.mean(frames_stack, axis=0)
+                    self.std = np.std(frames_stack, axis=0)
 
                     np.savez("mean_std_{}.npz".format(self.mode), self.mean, self.std)
                     print('mean, std {} saved.'.format(self.mode))
@@ -176,8 +180,9 @@ class GesturesDataset(Dataset):
                         if self.mode == 'leap_motion_tracking_data':
                             list_of_json_frame = []
                             for js in list_of_img_of_same_record:  #not cropped because variable mode
-                                f_js, j = utilities.from_json_to_list(js)
-                                f_js = utilities.extract_features_tracking_data()
+                                f_js = utilities.from_json_to_list(js)
+                                if self.tracking_data_mod:
+                                    f_js = utilities.extract_features_tracking_data(f_js)
                                 list_img.append(np.asarray(f_js))
                         else:
 
@@ -231,7 +236,8 @@ class GesturesDataset(Dataset):
             img_data = img_data[0]
 
             if self.normalization_type:
-                img_data = utilities.normalization(np.asarray(img_data), self.mean, self.std)
+
+                img_data = (np.asarray(img_data) - self.mean) / self.std
 
             return torch.Tensor(img_data), target
 
@@ -263,16 +269,21 @@ class GesturesDataset(Dataset):
                      list_of_img_of_same_record_cropped])
 
             elif self.mode == 'rgb':
-                clip = np.array(
-                    [cv2.resize(cv2.imread(frame, True), (112, 112)) for frame in
-                     list_of_img_of_same_record_cropped]
-                )
+                if self.rgb:
+                    clip = np.array(
+                        [cv2.resize(cv2.imread(frame, self.rgb), (112, 112)) for frame in
+                         list_of_img_of_same_record_cropped]
+                    )
+                else: # gray scale
+                    clip = np.array(
+                        [np.expand_dims(cv2.resize(cv2.imread(frame, self.rgb), (112, 112)), axis=2) for frame in
+                         list_of_img_of_same_record_cropped]
+                    )
 
             clip = clip.transpose([3, 0, 1, 2])  # ch, fr, h, w
             clip = np.float32(clip)
             if self.normalization_type is not None:
                 clip = utilities.normalization(clip, self.mean, self.std, 1)
-
 
             return torch.from_numpy(clip), target
 
