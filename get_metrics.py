@@ -9,7 +9,7 @@ import os
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_file', type=str, default='test_result.json')
 parser.add_argument('--title', type=str, default='title')
-
+parser.add_argument('--normalized', action='store_true', default=False)
 args = parser.parse_args()
 
 
@@ -70,7 +70,7 @@ def plot_confusion_matrix(y_true, y_pred, classes,
 def main():
 
     print(args.input_file)
-    file = args.input_file.split('/')[1]
+    file = args.input_file.split('/')[2]
     if not os.path.exists('./plots'):
         os.makedirs('./plots')
 
@@ -80,8 +80,8 @@ def main():
     y_true, y_pred = data['list_of_gt'], data['list_of_pred']
 
     class_names = ['g0', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11']
-    plot_confusion_matrix(y_true=y_true, y_pred=y_pred, classes=class_names, normalize=False, title=args.title)
-    plt.savefig('./plots/conf_matrix_{}.jpg'.format(file[:-5]))
+    plot_confusion_matrix(y_true=y_true, y_pred=y_pred, classes=class_names, normalize=args.normalized, title=args.title)
+    plt.savefig('./plots/{}conf_matrix_{}.jpg'.format("n" if args.normalized else "", file[:-5]))
 
     class_correct = data['class_correct']
     class_total = data['class_total']
@@ -92,9 +92,6 @@ def main():
     for i in range(len(class_names)):
        print('Accuracy of {} : {:.3f}%'.format(
             class_names[i], 100 * class_correct[i] / class_total[i]))
-
-
-
 
 
 if __name__ == '__main__':

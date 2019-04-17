@@ -10,6 +10,7 @@ from torchvision import models
 import time, os
 import random
 import numpy as np
+from ConvGru import ConvGRU
 
 
 parser = argparse.ArgumentParser(description='PyTorch conv2d')
@@ -195,7 +196,7 @@ def main():
             # modifico parametri
             print('ok')
 
-            # model.load_state_dict(torch.load('c3d_weights/c3d.pickle', map_location=device), strict=False)
+            model.load_state_dict(torch.load('c3d_weights/c3d.pickle', map_location=device), strict=False)
             # # for params in model.parameters():
             #     # params.requires_grad = False
 
@@ -212,7 +213,7 @@ def main():
     elif args.model == 'Conv-lstm':
         model = ConvLSTM(input_size=(args.input_size, args.input_size),
                          input_dim=1 if not rgb else 3,
-                         hidden_dim=[64, 128],
+                         hidden_dim=[64, 64, 128],
                          kernel_size=(3, 3),
                          num_layers=args.n_layers,
                          batch_first=True,
@@ -220,6 +221,10 @@ def main():
     elif args.model == 'DeepConvLstm':
         model = DeepConvLstm(input_channels_conv=1 if not rgb else 3, input_size_conv=args.input_size, n_classes=12,
                              n_frames=args.n_frames, batch_size=args.batch_size).to(device)
+
+    elif args.model == 'ConvGRU':
+        model = ConvGRU(input_size=40, hidden_sizes=[64, 128],
+                        kernel_sizes=[3, 3], n_layers=2).to(device)
 
     else:
         raise NotImplementedError

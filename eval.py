@@ -9,8 +9,9 @@ import utilities
 import torch
 import random
 import tqdm
-from models import CrossConvNet, Rnn
+from models import CrossConvNet, Rnn, C3D
 import math
+import time
 
 parser = argparse.ArgumentParser(description='Evaluator')
 parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -44,7 +45,7 @@ args = parser.parse_args()
 
 class GestureTestSet(Dataset):
     def __init__(self, csv_test_path, mode='depth_ir', normalization_type=-1,
-                 preprocessing_type=-1, resize_dim=224, n_frames=30, gray_scale=False):
+                 preprocessing_type=-1, resize_dim=224, n_frames=30, rgb=False, model=None):
         super().__init__()
         self.csv_path = csv_test_path
         self.normalization_type = normalization_type
@@ -52,7 +53,8 @@ class GestureTestSet(Dataset):
         self.resize_dim = resize_dim
         self.n_frames = n_frames
         self.mode = mode
-        self.gray_scale = gray_scale
+        self.rgb = rgb
+        self.model = model
 
         self.list_data = []
         self.list_of_rows_with_same_mode = []
@@ -181,13 +183,22 @@ class GestureTestSet(Dataset):
             img_data = self.list_data[1][item]
             list_same_mode = self.list_of_rows_with_same_mode[1]
 
+            self.mean = self.mean_ir
+            self.std = self.std_ir
+
         elif self.mode == 'rgb':
             img_data = self.list_data[2][item]
             list_same_mode = self.list_of_rows_with_same_mode[2]
 
-        elif self.mode == 'depth':
+            self.mean = self.mean_rgb
+            self.std = self.std_rgb
+
+        elif self.mode == 'depth_z':
             img_data = self.list_data[0][item]
             list_same_mode = self.list_of_rows_with_same_mode[0]
+
+            self.mean = self.mean_z
+            self.std = self.std_z
 
         elif self.mode == 'depth_ir_rgb' or self.mode == 'depth_ir' or self.mode == 'depth_rgb' or self.mode == 'ir_rgb':
             img_data_depth = self.list_data[0][item]
@@ -235,7 +246,37 @@ class GestureTestSet(Dataset):
         else:
             raise NotImplementedError
 
-        if self.mode != 'depth' and self.mode != 'ir' and self.mode != 'rgb':
+        if self.model == 'C3D':
+
+            # if img_data_depth is not None:
+            #     list_of_img_of_same_record = [img[0] for img in list_same_mode_depth
+            #                                   if img[1] == img_data_depth[1]  # sessione
+            #                                   and img[2] == img_data_depth[2]  # gesture
+            #                                   and img[3] == img_data_depth[3]]  # record
+            # if img_data_ir is not None:
+            #     list_of_img_of_same_record = [img[0] for img in list_same_mode_ir
+            #                                   if img[1] == img_data_depth[1]  # sessione
+            #                                   and img[2] == img_data_depth[2]  # gesture
+            #                                   and img[3] == img_data_depth[3]]  # record
+            #
+            # if img_data_rgb is not None:
+            list_of_img_of_same_record = [img[0] for img in list_same_mode
+                                          if img[1] == img_data[1]  # sessione
+                                          and img[2] == img_data[2]  # gesture
+                                          and img[3] == img_data[3]]  # record
+        # creo clip per la C3D
+            clip = utilities.create_clip(list_of_img_of_same_record=list_of_img_of_same_record, n_frames=self.n_frames,
+                                         mode=self.mode, resize_dim=self.resize_dim, C3D=True, rgb=self.rgb)
+
+            target = torch.LongTensor(np.asarray([int(img_data[5])]))
+
+            if self.normalization_type is not None:
+                clip = utilities.normalization(clip, self.mean, self.std, 1)
+
+            return clip, target
+
+        # CROSS CONV
+        if self.mode != 'depth_z' and self.mode != 'ir' and self.mode != 'rgb':
 
             target = None
             clip_depth = None
@@ -279,7 +320,7 @@ class GestureTestSet(Dataset):
 
                 clip_rgb = utilities.create_clip(list_of_img_of_same_record=list_of_img_of_same_record,
                                                 n_frames=self.n_frames,
-                                                mode='rgb', resize_dim=self.resize_dim, rgb=not self.gray_scale)
+                                                mode='rgb', resize_dim=self.resize_dim, rgb=self.rgb)
 
                 clip_rgb = utilities.normalization(clip_rgb, self.mean_rgb, self.std_rgb)
 
@@ -316,7 +357,7 @@ class GestureTestSet(Dataset):
 
             clip = utilities.create_clip(list_of_img_of_same_record=list_of_img_of_same_record,
                                          n_frames=self.n_frames,
-                                         mode=self.mode, resize_dim=self.resize_dim, rgb= not self.gray_scale)
+                                         mode=self.mode, resize_dim=self.resize_dim, rgb=self.rgb)
 
             if self.normalization_type is not None:
                 mean, std = None, None
@@ -327,7 +368,7 @@ class GestureTestSet(Dataset):
                     mean = self.mean_rgb
                     std = self.std_rgb
 
-                elif self.mode == 'depth':
+                elif self.mode == 'depth_z':
                     mean = self.mean_z
                     std = self.std_z
                 else:
@@ -368,6 +409,8 @@ class Eval:
         accuracy, running_accuracy = 0., 0.
         self.model.eval()
 
+        time_list = []
+
         for step, data in enumerate(tqdm.tqdm(self.test_loader)):
 
             x, label = data
@@ -404,7 +447,17 @@ class Eval:
 
             else:
                 x = x.to(self.device)
+                start = time.time()
                 output = self.model(x)
+                stop = time.time()
+                time_list.append(stop-start)
+                print("time {:.5f}".format(stop - start))
+
+                if step == 10:
+                    print("mean: {:.5f}".format(np.mean(np.asarray(time_list[1:]))))
+                    print("std: {:.5f}".format(np.std(np.asarray(time_list[1:]))))
+                    exit("end")
+
 
             predicted = torch.argmax(output, dim=1)
             correct = label.squeeze(dim=1)
@@ -451,6 +504,7 @@ class Eval:
 def main():
     use_cuda = torch.cuda.is_available() and not args.no_cuda
     device = torch.device('cuda' if use_cuda else 'cpu')
+    # device = 'cpu'
     print(device)
 
     random.seed(args.seed)
@@ -460,7 +514,7 @@ def main():
         torch.cuda.manual_seed(args.seed)
         torch.backends.cudnn.deterministic = True
 
-    rgb = True
+    rgb = True if args.model_path_rgb is not None or args.mode == 'rgb' else False
     if args.gray_scale is True:
         rgb = False
 
@@ -468,7 +522,7 @@ def main():
     n_classes = args.n_classes
 
     test_set = GestureTestSet(csv_test_path='csv_testset', n_frames=args.n_frames, resize_dim=args.input_size,
-                              mode=args.mode, gray_scale=args.gray_scale)
+                              mode=args.mode, rgb=rgb, model=args.model)
     test_loader = DataLoader(dataset=test_set, batch_size=args.batch_size)
 
     if args.model == 'DenseNet':
@@ -520,8 +574,7 @@ def main():
             model_rgb = models.densenet161(pretrained=True)
             # for params in model_rgb.parameters():
             #     params.requibed_grad = False
-            model_rgb.features._modules['conv0'] = nn.Conv2d(in_channels=args.n_frames*3 if not rgb else
-                                                             args.n_frames, out_channels=96, kernel_size=(7, 7),
+            model_rgb.features._modules['conv0'] = nn.Conv2d(in_channels=in_channels, out_channels=96, kernel_size=(7, 7),
                                                          stride=(2, 2), padding=(3, 3))
             model_rgb.classifier = nn.Linear(in_features=2208, out_features=n_classes, bias=True)
             model_rgb = model_rgb.to(device)
@@ -542,6 +595,20 @@ def main():
 
         model.load_state_dict(torch.load(args.model_path, map_location=device)['state_dict'])
         model.eval()
+
+    elif args.model == 'C3D':
+        model = C3D(num_classes=12, rgb=rgb)
+
+        model.conv1 = nn.Conv3d(1 if not rgb else 3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
+
+        model.fc6 = nn.Linear(16384, 4096)
+        # model.fc7 = nn.Linear(4096, 4096)  # num classes
+        model.fc8 = nn.Linear(4096, n_classes)  # num classes
+
+        model = model.to(device)
+        model.eval()
+
+        model.load_state_dict(torch.load(args.model_path, map_location=device)['state_dict'])
 
     result_file = "result_{}_{}_{}".format(args.model, args.mode, args.res_name)
 

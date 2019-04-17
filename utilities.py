@@ -37,7 +37,7 @@ def print_validation_info(log_file, writer, epoch, step, running_loss, validatio
     writer.add_scalar('data/validation_accuracy', validation_accuracy, epoch * nof_steps + step)
 
 
-def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim, DeepConvLstm=False, rgb=False):
+def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim, C3D=False, rgb=False, DeepConvLstm=False):
 
     # rgb = True if mode == 'rgb' else False
     center_of_list = math.floor(len(list_of_img_of_same_record) / 2)
@@ -47,28 +47,61 @@ def create_clip(list_of_img_of_same_record, n_frames, mode, resize_dim, DeepConv
     list_of_img_of_same_record_cropped = list_of_img_of_same_record[
                                          start: end + 1 if n_frames % 2 == 1 else end]
 
-    list_img = []
-    for img_path in list_of_img_of_same_record_cropped:
-        if mode != 'depth_z':
-            img = cv2.imread(img_path, 0 if not rgb else 1)
-            img = cv2.resize(img, (resize_dim, resize_dim))
-            if not rgb:
+    if not C3D and not DeepConvLstm:
+        list_img = []
+        for img_path in list_of_img_of_same_record_cropped:
+            if mode != 'depth_z':
+                img = cv2.imread(img_path, 0 if not rgb else 1)
+                img = cv2.resize(img, (resize_dim, resize_dim))
+                if not rgb:
+                    img = np.expand_dims(img, axis=2)
+            elif mode == 'depth_z':
+                f = gzip.GzipFile(img_path, "r")
+                img = np.loadtxt(f)
+                img = cv2.resize(img, (resize_dim, resize_dim))
                 img = np.expand_dims(img, axis=2)
-        elif mode == 'depth_z':
-            f = gzip.GzipFile(img_path, "r")
-            img = np.loadtxt(f)
-            img = cv2.resize(img, (resize_dim, resize_dim))
-            img = np.expand_dims(img, axis=2)
-        list_img.append(img)
+            list_img.append(img)
 
-    # concateno numpy array
-    if not DeepConvLstm:
         clip = np.concatenate(list_img, axis=2)
         clip = clip.transpose([2, 0, 1])
 
-    else:
-        clip = np.asarray(list_img)
-        clip = clip.transpose([0, 3, 1, 2])
+    else:# C3D
+        if mode == 'depth_z':
+            # clip = np.asarray([np.expand_dims(cv2.resize(np.loadtxt(gzip.GzipFile(frame, 'r')),
+            #                                                      (112, 112)), axis=2)
+            #                  for frame in list_of_img_of_same_record_cropped])
+            clip = []
+            for img_path in list_of_img_of_same_record_cropped:
+                f = gzip.GzipFile(img_path, "r")
+                img = np.loadtxt(f)
+                img = cv2.resize(img, (112, 112))
+                img = np.expand_dims(img, axis=2)
+                clip.append(img)
+            clip = np.asarray(clip)
+        elif mode == 'ir':
+            clip = np.asarray(
+                [np.expand_dims(cv2.resize(cv2.imread(frame, False), (112, 112)), axis=2) for frame in
+                 list_of_img_of_same_record_cropped])
+
+        elif mode == 'rgb':
+            if rgb:
+                clip = np.asarray(
+                    [cv2.resize(cv2.imread(frame, rgb), (112, 112)) for frame in
+                     list_of_img_of_same_record_cropped]
+                )
+            else:  # gray scale
+                clip = np.asarray(
+                    [np.expand_dims(cv2.resize(cv2.imread(frame, rgb), (112, 112)), axis=2) for frame in
+                     list_of_img_of_same_record_cropped]
+                )
+        if not DeepConvLstm:
+            clip = clip.transpose([3, 0, 1, 2])  # ch, fr, h, w
+            clip = clip.astype(np.float32)
+
+
+        # concateno numpy array
+        else:
+            clip = clip.transpose([0, 3, 1, 2])
 
     return clip
 
@@ -86,9 +119,10 @@ def create_result_json(out_file, result_dir, accuracy, conf_matrix, class_correc
             'list_of_pred': list_of_pred,
             'list_of_gt': list_of_gt
             }
-    with open("{}/{}.json".format(result_dir, out_file[:-4]), 'w') as out_file:
+    with open("{}/{}.json".format(result_dir, out_file), 'w') as out_file:
         json.dump(data, out_file)
     out_file.close()
+
 
 # full 675, full_no_fingers 145, mod 192
 def from_json_to_list(json_file):
@@ -801,6 +835,20 @@ def extract_features_tracking_data(js):
           js[600], js[601], js[602], js[603], js[604], js[605],  # pinky 0
           js[626], js[627], js[628], js[629], js[630], js[631],  # pinky 1
           js[652], js[653], js[654], js[655], js[656], js[657],  # pinky 2
+          ]
+    return js
+
+def extract_features_tracking_data_for_mod_145(js):
+    # len 48
+    js = [
+          js[0], js[1], js[2], js[3], js[4], js[5],
+          js[6], js[7], js[8], js[9], js[10], js[11],
+          js[34], js[35], js[36], js[37], js[38], js[39],
+          js[40], js[41], js[42], js[43], js[44], js[45],
+          js[61], js[62], js[63], js[64], js[65], js[66],
+          js[82], js[83], js[84], js[85], js[86], js[87],
+          js[103], js[104], js[105], js[106], js[107], js[108],
+          js[124], js[125], js[126], js[127], js[128], js[129],
           ]
     return js
 

@@ -38,7 +38,7 @@ class GesturesDataset(Dataset):
                     self.transforms = transforms.Compose([
                         utilities.Rescale(256),
                         utilities.RandomCrop(self.resize_dim),
-                        utilities.RandomFlip(15),
+                        utilities.RandomFlip(),
                         transforms.ToTensor()
                     ])
                 else:
@@ -150,11 +150,11 @@ class GesturesDataset(Dataset):
 
                     # frames_stack = np.asarray([frame for frame in record for record in self.list_data[0]])
                     # mean unica
-                    # self.mean = np.mean(frames_stack)
-                    # self.std = np.std(frames_stack)
+                    self.mean = np.mean(frames_stack)
+                    self.std = np.std(frames_stack)
                     # mean shrec
-                    self.mean = np.mean(frames_stack, axis=0)
-                    self.std = np.std(frames_stack, axis=0)
+                    # self.mean = np.mean(frames_stack, axis=0)
+                    # self.std = np.std(frames_stack, axis=0)
 
                     np.savez("mean_std_{}.npz".format(self.mode), self.mean, self.std)
                     print('mean, std {} saved.'.format(self.mode))
@@ -317,7 +317,6 @@ class GesturesDataset(Dataset):
             clip = np.float32(clip)
 
             return clip, target
-
 
         else:
             list_img = []
