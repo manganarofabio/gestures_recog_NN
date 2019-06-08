@@ -18,13 +18,18 @@ The gesture recogntion system exploits 4 different neural network architectures 
 
 1. CNN 2D
 
-<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/densenet2.jpg" width="500" height"500">
+<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/densenet2.jpg">
+
 2. Multi modal net
-<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/cross_depth_ir_rgb.png" width="500" height"500">
+
+<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/cross_depth_ir_rgb.png" width="500" height="300">
+
 3. C3D
-<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/C3D_model.png" width="500" height"500">
+
+<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/C3D_model.png">
+
 4. LSTM
-<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/lstm_model.png" width="500" height"500">
+<img src="https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/lstm_model.png" width="500" height="300" >
 
 ## Training Set
 
