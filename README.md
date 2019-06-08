@@ -2,17 +2,21 @@
 
 PyTorch implementation of a CNN based gesture recognition system.
 
+## Implemented Models
 The gesture recogntion system exploits 4 different neural network architectures implemented in models.py and cross_mode_net.py
 
 1) CNN 2D
-![alt text](https://github.com/manganarofabio/gestures_recog_NN/tree/master/imgs/densenet2.jpg)
+![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/densenet2.jpg)
 2) Multi modal net
-![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/mmn.jpg)
+![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/cross_depth_ir_rgb.png)
 3) C3D
-![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/c3d.jpg)
+![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/C3D_model.png)
 4) LSTM
-![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/gesti.jpg)
+![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/lstm_model.png)
 
+# Training Set
+
+All the models have been trainend usinge the custom dataset called Briareo.
 
 
 
