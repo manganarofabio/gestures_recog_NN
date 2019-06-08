@@ -2,7 +2,7 @@
 
 PyTorch implementation of a CNN based gesture recognition system.
 
-This repo is about the project I've done and presented for my Masters' degree thesis. 
+This repo is about the project I've done and presented for my Master's degree thesis. 
 All the details and techincal analysis are explained in my [thesis](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/Tesi_Manganaro_Fabio.pdf) and [presentation](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/Manganaro_Fabio_tesi_magistrale_esposizione.pdf).
 
 The whole thesis project leaded to the submission of the paper ["Hand Gestures for the Human-Car Interaction:the Briareo dataset"](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf) Fabio Manganaro, Stefano Pini, Guido Borghi, Roberto Vezzani, and Rita Cucchiara. University of Modena and Reggio Emilia, Italy, Department of Engineering “Enzo Ferrari", submitted to ICIAP 2019.
