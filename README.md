@@ -2,6 +2,11 @@
 
 PyTorch implementation of a CNN based gesture recognition system.
 
+This repo is about the project I've done and presented for my Masters degree thesis. 
+All the details and techincal analysis are explained in my [thesis]() and [presentation]
+
+(video)
+
 ## Implemented Models
 The gesture recogntion system exploits 4 different neural network architectures implemented in models.py and cross_mode_net.py
 
@@ -16,12 +21,12 @@ The gesture recogntion system exploits 4 different neural network architectures 
 
 # Training Set
 
-All the models have been trainend usinge the custom dataset called Briareo.
+All the models have been trainend usinge the custom dataset called Briareo (read []().
 
 
 
 ![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/gesti.jpg)
 
 ## Contents
-1) main.py provides all the CNN models which have been usedvand training sturucture.
+1) main.py provides all the CNN models which have been used and training sturucture.
 2) dataloeder.py provides the implementation of pytorch dataloaed for a custom dataset.
