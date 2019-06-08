@@ -3,9 +3,9 @@
 PyTorch implementation of a CNN based gesture recognition system.
 
 This repo is about the project I've done and presented for my Masters' degree thesis. 
-All the details and techincal analysis are explained in my [thesis](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/Tesi_Manganaro_Fabio.pdf) and [presentation](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/Manganaro_Fabio_tesi_magistrale_esposizione.pdf)
+All the details and techincal analysis are explained in my [thesis].(https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/Tesi_Manganaro_Fabio.pdf) and [presentation](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/Manganaro_Fabio_tesi_magistrale_esposizione.pdf)
 
-The whole thesis project leaded to the paper [Hand Gestures for the Human-Car Interaction:the Briareo dataset](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf) submitted to ICIAP 2019.
+The whole thesis project leaded to the submission of the paper ["Hand Gestures for the Human-Car Interaction:the Briareo dataset"](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf) Fabio Manganaro, Stefano Pini, Guido Borghi, Roberto Vezzani, andRita CucchiaraUniversity of Modena and Reggio Emilia, ItalyDepartment of Engineering “Enzo Ferrari", submitted to ICIAP 2019.
 
 Example of working prototype:
 
@@ -27,10 +27,10 @@ The gesture recogntion system exploits 4 different neural network architectures 
 
 ## Training Set
 
-All the models have been trainend usinge the custom dataset called Briareo (read [Hand Gestures for the Human-Car Interaction:the Briareo dataset](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf)) which has been collected using the following implemented framework: .
+All the models have been trainend usinge the custom dataset called Briareo (read [Hand Gestures for the Human-Car Interaction:the Briareo dataset](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf)) which has been collected using the following implemented framework: [gestures collector](https://github.com/manganarofabio/gestures-collector).
 
 
-Example of dataset images
+Example of gestures in the dataset.
 ![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/gesti.jpg)
 
 ## Contents
