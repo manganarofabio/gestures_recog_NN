@@ -23,7 +23,7 @@ The gesture recogntion system exploits 4 different neural network architectures 
 3. C3D
 ![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/C3D_model.png)
 4. LSTM
-![](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/lstm_model.png =100x100)
+![](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/lstm_model.png)
 
 ## Training Set
 
