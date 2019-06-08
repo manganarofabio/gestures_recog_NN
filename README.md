@@ -5,7 +5,7 @@ PyTorch implementation of a CNN based gesture recognition system.
 The gesture recogntion system exploits 4 different neural network architectures implemented in models.py and cross_mode_net.py
 
 1) CNN 2D
-![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/cnn.jpg)
+![alt text](https://github.com/manganarofabio/gestures_recog_NN/tree/master/imgs/densenet2.jpg)
 2) Multi modal net
 ![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/mmn.jpg)
 3) C3D
