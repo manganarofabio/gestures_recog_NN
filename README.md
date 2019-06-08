@@ -8,7 +8,7 @@ All the details and techincal analysis are explained in my [thesis](https://gith
 The whole thesis project leaded to the submission of the paper ["Hand Gestures for the Human-Car Interaction:the Briareo dataset"](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf) Fabio Manganaro, Stefano Pini, Guido Borghi, Roberto Vezzani, and Rita Cucchiara. University of Modena and Reggio Emilia, Italy, Department of Engineering “Enzo Ferrari", submitted to ICIAP 2019.
 
 Example of working prototype:
-[![IMAGE ALT TEXT HERE](https://vimeo.com/341093197/0.jpg)](https://vimeo.com/341093197)
+[video](https://vimeo.com/341093197)
 
 ## Implemented Models
 The gesture recogntion system exploits 4 different neural network architectures implemented in models.py and cross_mode_net.py
