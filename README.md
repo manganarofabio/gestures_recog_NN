@@ -31,7 +31,11 @@ All the models have been trainend usinge the custom dataset called Briareo (read
 
 
 Example of gestures in the dataset.
-![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/gesti.jpg)
+![alt text](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/gesti.jpg)
+
+## System prototype
+
+The system prototype has been implementented in the project: [demo_gesture_recog](https://github.com/manganarofabio/demo_gesture_recog).
 
 ## Contents
 1) main.py provides all the CNN models which have been used and training sturucture.
