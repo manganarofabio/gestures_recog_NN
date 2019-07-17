@@ -7,6 +7,9 @@ All the details and techincal analysis are explained in my [thesis](https://gith
 
 The whole thesis project leaded to the submission of the paper ["Hand Gestures for the Human-Car Interaction:the Briareo dataset"](https://github.com/manganarofabio/gestures_recog_NN/blob/master/docs/ICIAP19___Hand_Gestures.pdf) Fabio Manganaro, Stefano Pini, Guido Borghi, Roberto Vezzani, and Rita Cucchiara. University of Modena and Reggio Emilia, Italy, Department of Engineering “Enzo Ferrari", submitted to ICIAP 2019.
 
+### Important
+For more info about the project and instructions to download the dataset please refer to http://imagelab.ing.unimore.it/briareo.
+
 Video example of working prototype:
 [![video example](https://github.com/manganarofabio/gestures_recog_NN/blob/master/imgs/th0.png)](https://vimeo.com/341095270)
 ## Implemented Models
