@@ -1,5 +1,4 @@
 # gestures_recog_NN
-hhh
 
 PyTorch implementation of a CNN based gesture recognition system.
 
